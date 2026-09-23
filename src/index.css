@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Modern Minimal Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+/* Utilities for hiding scrollbars where appropriate */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Guard against content overflow in WeChat preview containers */
+.wechat-preview-render-area,
+.wechat-preview-body {
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.wechat-preview-render-area pre,
+.wechat-preview-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.wechat-preview-render-area table,
+.wechat-preview-body table {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.wechat-preview-render-area img,
+.wechat-preview-body img {
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box;
+}

@@ -1,0 +1,6 @@
+# GitHub 官方 Sponsors 开源赞助配置
+# 仓库主页右上角将自动呈现官方「Sponsor」赞助按钮
+
+github: [andrewlaredo]
+
+custom: ["https://raw.githubusercontent.com/andrewlaredo/wechat-draft-publisher/refs/heads/main/packages/web/public/wechat-pay.png"]

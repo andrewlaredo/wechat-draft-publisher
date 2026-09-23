@@ -1,0 +1,22 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "wechat-draft-publisher",
+  "outputfilename": "wechat-draft-publisher",
+  "frontend:dir": ".",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm run build",
+  "frontend:dev:watcher": "pnpm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "andrewlaredo",
+    "email": "andrewlaredome@gmail.com"
+  },
+  "info": {
+    "companyName": "WeChat Draft Publisher",
+    "productName": "WeChat Draft Publisher",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026",
+    "comments": "微信公众号文章 Markdown 草稿同步排版发布工具桌面客户端"
+  },
+  "wailsjsdir": "./src/wailsjs"
+}

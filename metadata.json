@@ -1,0 +1,6 @@
+{
+  "name": "WeChat Draft Publisher",
+  "description": "微信公众号草稿箱自动推送与排版预览工具，支持经典图文消息与图片消息（贴图/小绿书模式）推送、Markdown 解析、多主题排版、内联样式、图片永久素材库上传及草稿箱发布。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

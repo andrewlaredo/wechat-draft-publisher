@@ -1,0 +1,85 @@
+name: Build & Release Wails Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Desktop App (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Windows (x64)
+            os: windows-latest
+            goos: windows
+            goarch: amd64
+            build-args: -platform windows/amd64 -nsis
+            artifact-path: build/bin/*.exe
+
+          - name: macOS (Universal)
+            os: macos-latest
+            goos: darwin
+            goarch: universal
+            build-args: -platform darwin/universal
+            artifact-path: build/bin/*.app
+
+          - name: Linux (x64)
+            os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            build-args: -platform linux/amd64
+            artifact-path: build/bin/*
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          check-latest: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Linux Build Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev build-essential pkg-config
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Build Desktop Application
+        run: wails build ${{ matrix.platform.build-args }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wechat-draft-publisher-${{ matrix.platform.goos }}-${{ matrix.platform.goarch }}
+          path: ${{ matrix.platform.artifact-path }}
+
+      - name: Release to GitHub
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.platform.artifact-path }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -1,0 +1,23 @@
+wechat:
+  app_id: ""
+  app_secret: ""
+  proxy_url: ""                    # 可选，解决 IP 白名单或反代需求
+  token_cache: ".cache/access_token.json"
+
+publish:
+  author: "默认作者"
+  digest_length: 120
+  enable_comment: true
+  retry_times: 3
+  retry_interval: 2000             # ms
+
+markdown:
+  theme: "pie"                     # pie / default / tech-blue / orangeheart / lapis / phycat / medium / sakura / warm-paper
+  code_theme: "github"             # github / monokai / vs / atom-one-dark
+  theme_enabled: true              # 是否启用主题排版（false 则为原生极简排版）
+  inline_style: true               # 是否执行内联样式转换（公众号必须为 true）
+  mac_style: true                  # 代码块显示 macOS 风格红黄绿三点控件
+
+image:
+  upload_concurrency: 3
+  convert_webp: true               # 自动将 WebP 转换为高保真 PNG 并压缩超规图片 (≥2MB)
