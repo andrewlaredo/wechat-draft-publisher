@@ -17,8 +17,10 @@ import { ArticleMeta, PublishHistoryItem, PublishLogItem } from './types/app.ts'
 import { GeneratedArticleResult } from './ai/generator.ts';
 import { wechatHtmlToMarkdown } from './markdown/html2md.ts';
 import { safeFetchJson } from './utils/safeFetch.ts';
+import { renderMarkdownLocally } from './markdown/clientRender.ts';
 
 const LOCAL_STORAGE_DRAFT_KEY = 'wechat_draft_auto_save_v1';
+const LOCAL_STORAGE_CONFIG_KEY = 'wechat_publisher_client_config_v1';
 
 export default function App() {
   // State: Content & Meta restored from LocalStorage or default sample
@@ -202,15 +204,30 @@ export default function App() {
   // Clipboard copy state
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
-  // App Settings & Credentials
+  // App Settings & Credentials (initialized from localStorage or server)
   const [config, setConfig] = useState<{
     appId: string;
     hasSecret: boolean;
     proxyUrl: string;
-  }>({
-    appId: '',
-    hasSecret: false,
-    proxyUrl: '',
+  }>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_CONFIG_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          appId: parsed.appId || '',
+          hasSecret: !!parsed.hasSecret,
+          proxyUrl: parsed.proxyUrl || '',
+        };
+      }
+    } catch {
+      // Ignore
+    }
+    return {
+      appId: '',
+      hasSecret: false,
+      proxyUrl: '',
+    };
   });
 
   // Modals
@@ -247,14 +264,18 @@ export default function App() {
     try {
       const res = await safeFetchJson('/api/config');
       if (res.ok && res.data) {
-        setConfig({
+        const nextCfg = {
           appId: res.data.wechat?.app_id || '',
           hasSecret: !!res.data.wechat?.has_secret,
           proxyUrl: res.data.wechat?.proxy_url || '',
-        });
+        };
+        setConfig(nextCfg);
+        try {
+          localStorage.setItem(LOCAL_STORAGE_CONFIG_KEY, JSON.stringify(nextCfg));
+        } catch {}
       }
     } catch {
-      // Ignore
+      // Ignore network errors in pure client mode
     }
   }, []);
 
@@ -290,8 +311,36 @@ export default function App() {
     // Do not call fetchHistory on initial mount; it is called on-demand when opening the history tab or after publish
   }, [fetchConfig]);
 
-  // 2. Render markdown to inlined HTML (debounced)
+  // 2. Render markdown to inlined HTML (Client-first with seamless server sync)
   useEffect(() => {
+    // 2.1 Immediate local client-side render to guarantee 100% responsiveness without 404 delays
+    try {
+      const localResult = renderMarkdownLocally(markdown, {
+        theme: activeTheme,
+        themeEnabled,
+        macStyle,
+      });
+
+      setInlinedHtml(localResult.inlinedHtml);
+      setCharCount(localResult.charCount);
+      setHtmlLength(localResult.htmlLength);
+      setMetadata((prev) => ({
+        ...prev,
+        ...localResult.metadata,
+        theme: activeTheme,
+      }));
+      if (localResult.metadata.article_type) {
+        setArticleType(localResult.metadata.article_type);
+      }
+      if (localResult.newspicCaption) {
+        setNewspicCaption(localResult.newspicCaption);
+      }
+      setScannedImages(localResult.metadata.images || []);
+    } catch (localErr) {
+      console.warn('Local render fallback error:', localErr);
+    }
+
+    // 2.2 Optional debounced sync to backend /api/render if backend service is available
     const timer = setTimeout(async () => {
       try {
         const res = await safeFetchJson('/api/render', {
@@ -307,9 +356,9 @@ export default function App() {
 
         if (res.ok && res.data) {
           const data = res.data;
-          setInlinedHtml(data.inlinedHtml || '');
-          setCharCount(data.charCount || 0);
-          setHtmlLength(data.htmlLength || 0);
+          if (data.inlinedHtml) setInlinedHtml(data.inlinedHtml);
+          if (typeof data.charCount === 'number') setCharCount(data.charCount);
+          if (typeof data.htmlLength === 'number') setHtmlLength(data.htmlLength);
           if (data.metadata) {
             setMetadata((prev) => ({
               ...prev,
@@ -323,21 +372,11 @@ export default function App() {
           if (typeof data.newspicCaption === 'string') {
             setNewspicCaption(data.newspicCaption);
           }
-
-          // Scan images from markdown
-          const imgRegex = /!\[.*?\]\((.*?)\)/g;
-          const matches: string[] = [];
-          let m: RegExpExecArray | null;
-          while ((m = imgRegex.exec(markdown)) !== null) {
-            const url = m[1].trim().replace(/^<|>$/g, '');
-            if (url && !matches.includes(url)) matches.push(url);
-          }
-          setScannedImages(matches);
         }
-      } catch (err) {
-        console.error('Render error:', err);
+      } catch {
+        // Silently keep local render output if backend is not hosted (e.g. Vercel static or desktop offline)
       }
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [markdown, activeTheme, themeEnabled, macStyle]);
@@ -520,6 +559,16 @@ export default function App() {
 
   // 7. Save Settings
   const handleSaveSettings = async (data: { appId: string; appSecret?: string; proxyUrl?: string }) => {
+    const updatedCfg = {
+      appId: data.appId,
+      hasSecret: !!data.appSecret || config.hasSecret,
+      proxyUrl: data.proxyUrl || '',
+    };
+    setConfig(updatedCfg);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_CONFIG_KEY, JSON.stringify(updatedCfg));
+    } catch {}
+
     const res = await safeFetchJson('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
