@@ -249,6 +249,14 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [htmlLength, setHtmlLength] = useState<number>(0);
 
+  // Toast notifications helper
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((curr) => (curr === msg ? null : curr));
+    }, 2500);
+  }, []);
+
   // Publishing Pipeline State
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [publishIsDryRun, setPublishIsDryRun] = useState<boolean>(false);
@@ -311,9 +319,8 @@ export default function App() {
     // Do not call fetchHistory on initial mount; it is called on-demand when opening the history tab or after publish
   }, [fetchConfig]);
 
-  // 2. Render markdown to inlined HTML (Client-first with seamless server sync)
+  // 2. Render markdown to inlined HTML (100% Client-side authoritative engine)
   useEffect(() => {
-    // 2.1 Immediate local client-side render to guarantee 100% responsiveness without 404 delays
     try {
       const localResult = renderMarkdownLocally(markdown, {
         theme: activeTheme,
@@ -339,61 +346,55 @@ export default function App() {
     } catch (localErr) {
       console.warn('Local render fallback error:', localErr);
     }
-
-    // 2.2 Optional debounced sync to backend /api/render if backend service is available
-    const timer = setTimeout(async () => {
-      try {
-        const res = await safeFetchJson('/api/render', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            markdown,
-            theme: activeTheme,
-            themeEnabled,
-            macStyle,
-          }),
-        });
-
-        if (res.ok && res.data) {
-          const data = res.data;
-          if (data.inlinedHtml) setInlinedHtml(data.inlinedHtml);
-          if (typeof data.charCount === 'number') setCharCount(data.charCount);
-          if (typeof data.htmlLength === 'number') setHtmlLength(data.htmlLength);
-          if (data.metadata) {
-            setMetadata((prev) => ({
-              ...prev,
-              ...data.metadata,
-              theme: activeTheme,
-            }));
-            if (data.metadata.article_type) {
-              setArticleType(data.metadata.article_type);
-            }
-          }
-          if (typeof data.newspicCaption === 'string') {
-            setNewspicCaption(data.newspicCaption);
-          }
-        }
-      } catch {
-        // Silently keep local render output if backend is not hosted (e.g. Vercel static or desktop offline)
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
   }, [markdown, activeTheme, themeEnabled, macStyle]);
 
   // 3. Handle Template Selection
   const handleSelectSample = (sampleId: string) => {
-    const sample = SAMPLE_ARTICLES.find((s) => s.id === sampleId);
-    if (sample) {
-      setMarkdown(sample.markdown);
-      setActiveTheme(sample.theme);
-      if (sample.articleType) {
-        setArticleType(sample.articleType);
-      } else if (sample.id === 'newspic-gallery' || sample.markdown.includes('type: newspic')) {
-        setArticleType('newspic');
+    let sample = SAMPLE_ARTICLES.find((s) => s.id === sampleId);
+    if (!sample) {
+      if (sampleId === 'official-guide' || sampleId === 'full-syntax-guide') {
+        sample = SAMPLE_ARTICLES.find((s) => s.id === 'official-guide') || SAMPLE_ARTICLES[0];
       } else {
-        setArticleType('news');
+        sample = SAMPLE_ARTICLES[0];
       }
+    }
+
+    if (sample) {
+      const targetTheme = sample.theme || 'pie';
+      const targetArticleType = sample.articleType || (sample.id === 'newspic-gallery' || sample.markdown.includes('type: newspic') ? 'newspic' : 'news');
+
+      setMarkdown(sample.markdown);
+      setActiveTheme(targetTheme);
+      setArticleType(targetArticleType);
+
+      // Instant client-side render to eliminate any UI lag
+      try {
+        const localResult = renderMarkdownLocally(sample.markdown, {
+          theme: targetTheme,
+          themeEnabled,
+          macStyle,
+        });
+
+        setInlinedHtml(localResult.inlinedHtml);
+        setCharCount(localResult.charCount);
+        setHtmlLength(localResult.htmlLength);
+        setMetadata((prev) => ({
+          ...prev,
+          ...localResult.metadata,
+          theme: targetTheme,
+        }));
+        if (localResult.metadata.article_type) {
+          setArticleType(localResult.metadata.article_type);
+        }
+        if (localResult.newspicCaption) {
+          setNewspicCaption(localResult.newspicCaption);
+        }
+        setScannedImages(localResult.metadata.images || []);
+      } catch (err) {
+        console.warn('Local render error on sample select:', err);
+      }
+
+      showToast(`📖 已成功载入「${sample.name}」`);
     }
   };
 
@@ -523,6 +524,7 @@ export default function App() {
     try {
       const publishBody = {
         markdown,
+        inlinedHtml,
         dryRun,
         force,
         articleType,
@@ -598,14 +600,6 @@ export default function App() {
     });
     return res.data;
   };
-
-  // Toast notifications helper
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage((curr) => (curr === msg ? null : curr));
-    }, 2500);
-  }, []);
 
   // Export current Markdown to local .md file
   const handleExportMarkdown = useCallback(() => {

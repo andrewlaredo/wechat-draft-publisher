@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ArticleMeta } from '../types/app.ts';
+import { renderMarkdownLocally } from '../markdown/clientRender.ts';
 
 interface WeChatSimulatorProps {
   metadata: ArticleMeta;
@@ -39,6 +40,31 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
 }) => {
   const [copiedHtml, setCopiedHtml] = useState(false);
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
+
+  // Safeguard: Ensure inlinedHtml is real HTML. If it is raw Markdown or lacks HTML tags, parse it locally.
+  const safeInlinedHtml = useMemo(() => {
+    if (!inlinedHtml) return '';
+    const trimmed = inlinedHtml.trim();
+    // If it looks like raw markdown with front-matter or lacks HTML element tags
+    const isRawMarkdown =
+      trimmed.startsWith('---') ||
+      (!trimmed.includes('<section') &&
+        !trimmed.includes('<p') &&
+        !trimmed.includes('<div') &&
+        !trimmed.includes('<h'));
+    if (isRawMarkdown) {
+      try {
+        const rendered = renderMarkdownLocally(inlinedHtml, {
+          theme: themeName,
+          themeEnabled,
+        });
+        return rendered.inlinedHtml;
+      } catch (e) {
+        console.warn('Fallback rendering in simulator failed:', e);
+      }
+    }
+    return inlinedHtml;
+  }, [inlinedHtml, themeName, themeEnabled]);
 
   // Collect all images for Newspic gallery
   const galleryImages = useMemo(() => {
@@ -80,7 +106,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
             null,
             2
           )
-        : inlinedHtml;
+        : safeInlinedHtml;
 
     navigator.clipboard.writeText(contentToCopy);
     setCopiedHtml(true);
@@ -141,7 +167,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
           null,
           2
         )
-      : inlinedHtml;
+      : safeInlinedHtml;
 
     return (
       <div className="h-full flex flex-col bg-neutral-950 p-4 font-mono text-xs">
@@ -153,7 +179,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
             <span className="text-neutral-500">
               {isNewspic
                 ? `(含 ${galleryImages.length} 张图片素材 image_info · 微信官方原生图片消息协议)`
-                : `(${inlinedHtml.length} 字符 · 无 style/script 标签 · 满足微信草稿箱限制)`}
+                : `(${safeInlinedHtml.length} 字符 · 无 style/script 标签 · 满足微信草稿箱限制)`}
             </span>
           </div>
           <button
@@ -325,7 +351,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
           {/* Article Inlined Body */}
           <div
             className="wechat-preview-render-area max-w-full overflow-x-hidden break-words"
-            dangerouslySetInnerHTML={{ __html: inlinedHtml }}
+            dangerouslySetInnerHTML={{ __html: safeInlinedHtml }}
           />
         </div>
       </div>
@@ -534,7 +560,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
               {/* Article Rendered Body */}
               <div
                 className="wechat-preview-body text-neutral-800 max-w-full overflow-x-hidden break-words"
-                dangerouslySetInnerHTML={{ __html: inlinedHtml }}
+                dangerouslySetInnerHTML={{ __html: safeInlinedHtml }}
               />
 
               {/* WeChat Standard Footer */}

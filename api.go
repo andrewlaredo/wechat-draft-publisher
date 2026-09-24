@@ -502,6 +502,7 @@ func HandleNativeAPI(w http.ResponseWriter, r *http.Request) {
 	if path == "/api/publish" && r.Method == http.MethodPost {
 		var reqBody struct {
 			Markdown             string `json:"markdown"`
+			InlinedHTML          string `json:"inlinedHtml"`
 			DryRun               bool   `json:"dryRun"`
 			Force                bool   `json:"force"`
 			Theme                string `json:"theme"`
@@ -600,14 +601,18 @@ func HandleNativeAPI(w http.ResponseWriter, r *http.Request) {
 		// Create draft via WeChat API
 		thumbMediaID := reqBody.ThumbMediaIDOverride
 		apiURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/draft/add?access_token=%s", url.QueryEscape(token))
+		articleContent := reqBody.InlinedHTML
+		if articleContent == "" {
+			articleContent = fmt.Sprintf("<p>%s</p>", markdown)
+		}
 		articles := []map[string]interface{}{
 			{
-				"title":              title,
-				"author":             author,
-				"digest":             digest,
-				"content":            fmt.Sprintf("<p>%s</p>", markdown),
-				"thumb_media_id":     thumbMediaID,
-				"need_open_comment":  0,
+				"title":                 title,
+				"author":                author,
+				"digest":                digest,
+				"content":               articleContent,
+				"thumb_media_id":        thumbMediaID,
+				"need_open_comment":     0,
 				"only_fans_can_comment": 0,
 			},
 		}
@@ -783,8 +788,8 @@ func HandleNativeAPI(w http.ResponseWriter, r *http.Request) {
 				"theme":        activeTheme,
 				"article_type": "news",
 			},
-			"rawHtml":        markdown,
-			"inlinedHtml":    markdown,
+			"rawHtml":        "",
+			"inlinedHtml":    "",
 			"theme":          activeTheme,
 			"themeEnabled":   reqBody.ThemeEnabled,
 			"charCount":      charCount,
