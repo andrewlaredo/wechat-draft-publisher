@@ -1,6 +1,6 @@
 {
   "name": "WeChat Draft Publisher",
-  "description": "微信公众号草稿箱自动推送与排版预览工具，支持经典图文消息与图片消息（贴图/小绿书模式）推送、Markdown 解析、多主题排版、内联样式、图片永久素材库上传及草稿箱发布。",
+  "description": "微信公众号草稿箱自动推送与排版预览工具，支持经典图文消息与图片消息（贴图/小绿书模式）推送、Markdown 解析、多主题排版、内联样式、图片永久素材库上传及草稿箱发布；内置通用多模型 AI 创作引擎（DeepSeek / 通义千问 / Kimi / OpenAI / 智谱 GLM / Gemini / Ollama 等，支持 RAG 本地知识增强），可一键生成符合微信规范的文章草稿。",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": ["MAJOR_CAPABILITY_MULTI_LLM_ARTICLE_GENERATION"]
 }
