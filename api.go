@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -598,13 +599,75 @@ func HandleNativeAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Create draft via WeChat API
+		// Create draft via WeChat API: Resolve cover and images
 		thumbMediaID := reqBody.ThumbMediaIDOverride
-		apiURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/draft/add?access_token=%s", url.QueryEscape(token))
+		coverPath := reqBody.CoverOverride
+		if thumbMediaID == "" && coverPath != "" {
+			if localPath, ok := findLocalImageFile(coverPath); ok {
+				uploadedID, err := uploadPermanentImageToWeChat(token, localPath, proxyURL)
+				if err != nil {
+					writeJSON(w, http.StatusOK, map[string]interface{}{
+						"success": false,
+						"error":   fmt.Sprintf("上传封面配图失败: %v", err),
+					})
+					return
+				}
+				thumbMediaID = uploadedID
+			} else {
+				writeJSON(w, http.StatusOK, map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("未在应用同级目录或 images/ 文件夹中找到封面图片: %s", coverPath),
+				})
+				return
+			}
+		}
+
+		if thumbMediaID == "" {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"success": false,
+				"error":   "缺少文章封面图 (请在 Markdown front-matter 中指定 cover，如 cover: ./images/01-mars-default.png，或填写已有 thumb_media_id)",
+			})
+			return
+		}
+
+		// Scan and upload in-article local images to WeChat CDN
 		articleContent := reqBody.InlinedHTML
 		if articleContent == "" {
 			articleContent = fmt.Sprintf("<p>%s</p>", markdown)
 		}
+
+		reImg := regexp.MustCompile(`(?i)(<img\b[^>]*?\bsrc\s*=\s*["'])([^"']+)(["'])`)
+		articleContent = reImg.ReplaceAllStringFunc(articleContent, func(imgTag string) string {
+			matches := reImg.FindStringSubmatch(imgTag)
+			if len(matches) < 4 {
+				return imgTag
+			}
+			src := matches[2]
+			if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") && !strings.HasPrefix(src, "data:") {
+				if localPath, ok := findLocalImageFile(src); ok {
+					wxURL, err := uploadArticleImageToWeChat(token, localPath, proxyURL)
+					if err == nil && wxURL != "" {
+						return matches[1] + wxURL + matches[3]
+					}
+				}
+			}
+			return imgTag
+		})
+
+		// Minify HTML and check 20,000 character limit
+		articleContent = minifyHtmlNative(articleContent)
+		if len(articleContent) > 20000 {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"success": false,
+				"error": fmt.Sprintf(
+					"正文 HTML 代码总字符数 (%d 字符) 超过微信草稿箱 API 硬性上限 20,000 字符。\n【原因说明】：微信官方 draft/add 接口统计的是含所有底层标签、内联样式 (style) 和微信图片 CDN 超长链接的全部代码字符（当前纯文字为 %d 字）。\n【替代方案】：请直接点击顶部工具栏「复制富文本」，直接粘贴到微信公众平台网页版后台（网页版无 20,000 字符 API 限制，支持几万字长文排版）。",
+					len(articleContent), len([]rune(markdown)),
+				),
+			})
+			return
+		}
+
+		apiURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/draft/add?access_token=%s", url.QueryEscape(token))
 		articles := []map[string]interface{}{
 			{
 				"title":                 title,
@@ -853,4 +916,107 @@ func HandleNativeAPI(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "Desktop Native API ready",
 	})
+}
+
+func uploadPermanentImageToWeChat(token, filePath, proxyURL string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("无法读取本地封面图片文件: %v", err)
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("media", filepath.Base(filePath))
+	if err != nil {
+		return "", err
+	}
+	if _, err = io.Copy(part, file); err != nil {
+		return "", err
+	}
+	_ = writer.Close()
+
+	apiURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=%s&type=image", url.QueryEscape(token))
+	client := getHTTPClient(proxyURL)
+	req, err := http.NewRequest(http.MethodPost, apiURL, body)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("请求微信上传永久素材接口失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var res map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return "", err
+	}
+	if mediaID, ok := res["media_id"].(string); ok && mediaID != "" {
+		return mediaID, nil
+	}
+	errCode := 0
+	if code, ok := res["errcode"].(float64); ok {
+		errCode = int(code)
+	}
+	return "", fmt.Errorf("上传封面到微信素材库失败 [%d]: %v", errCode, res["errmsg"])
+}
+
+func uploadArticleImageToWeChat(token, filePath, proxyURL string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("无法读取本地配图文件: %v", err)
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("media", filepath.Base(filePath))
+	if err != nil {
+		return "", err
+	}
+	if _, err = io.Copy(part, file); err != nil {
+		return "", err
+	}
+	_ = writer.Close()
+
+	apiURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=%s", url.QueryEscape(token))
+	client := getHTTPClient(proxyURL)
+	req, err := http.NewRequest(http.MethodPost, apiURL, body)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("请求微信图片上传接口失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var res map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return "", err
+	}
+	if wxURL, ok := res["url"].(string); ok && wxURL != "" {
+		return wxURL, nil
+	}
+	errCode := 0
+	if code, ok := res["errcode"].(float64); ok {
+		errCode = int(code)
+	}
+	return "", fmt.Errorf("上传正文配图到微信失败 [%d]: %v", errCode, res["errmsg"])
+}
+
+func minifyHtmlNative(html string) string {
+	res := html
+	reComment := regexp.MustCompile(`<!--[\s\S]*?-->`)
+	res = reComment.ReplaceAllString(res, "")
+	reTagSpace := regexp.MustCompile(`>\s*[\r\n]+\s*<`)
+	res = reTagSpace.ReplaceAllString(res, "><")
+	reMultiSpace := regexp.MustCompile(`>\s{2,}<`)
+	res = reMultiSpace.ReplaceAllString(res, "><")
+	return res
 }

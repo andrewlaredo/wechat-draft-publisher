@@ -489,6 +489,38 @@ async function startServer() {
     }
   });
 
+  // Local images directory static serving and local image proxy
+  const imagesDirPath = path.join(process.cwd(), 'images');
+  if (fs.existsSync(imagesDirPath)) {
+    app.use('/images', express.static(imagesDirPath));
+  }
+
+  // Universal Local Image resolver endpoint: /api/local-image?path=...
+  app.get('/api/local-image', (req, res) => {
+    try {
+      const rawPath = req.query.path as string;
+      if (!rawPath) {
+        return res.status(400).send('Missing path parameter');
+      }
+      const clean = decodeURIComponent(rawPath).replace(/^\.?\/?/, '');
+      const candidates = [
+        path.resolve(process.cwd(), clean),
+        path.resolve(process.cwd(), 'images', path.basename(clean)),
+        path.resolve(imagesDirPath, clean),
+      ];
+
+      for (const cand of candidates) {
+        if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          return res.sendFile(cand);
+        }
+      }
+      res.status(404).send('Image file not found');
+    } catch (e: any) {
+      res.status(500).send(e.message);
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

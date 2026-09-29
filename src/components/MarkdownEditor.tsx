@@ -481,7 +481,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                     alt="Cover preview"
                     className="w-16 h-10 object-cover rounded"
                     onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
+                      const img = e.currentTarget;
+                      const cover = metadata.cover;
+                      if (!img.dataset.triedFallback && cover && (cover.startsWith('./') || cover.startsWith('images/'))) {
+                        img.dataset.triedFallback = 'true';
+                        img.src = `/api/local-image?path=${encodeURIComponent(cover)}`;
+                      } else {
+                        img.style.display = 'none';
+                      }
                     }}
                   />
                   <div className="text-[11px] text-neutral-400 truncate">

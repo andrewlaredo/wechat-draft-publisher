@@ -408,6 +408,14 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
                     src={galleryImages[activeImgIndex]}
                     alt={`Image ${activeImgIndex + 1}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      const rawSrc = galleryImages[activeImgIndex];
+                      if (!img.dataset.triedFallback && rawSrc && (rawSrc.startsWith('./') || rawSrc.startsWith('images/'))) {
+                        img.dataset.triedFallback = 'true';
+                        img.src = `/api/local-image?path=${encodeURIComponent(rawSrc)}`;
+                      }
+                    }}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center p-6 text-neutral-400">

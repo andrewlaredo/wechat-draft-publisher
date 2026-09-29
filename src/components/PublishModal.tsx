@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   CheckCircle2,
@@ -10,6 +10,9 @@ import {
   ShieldCheck,
   Play,
   RotateCcw,
+  Copy,
+  FileText,
+  Check,
 } from 'lucide-react';
 import { PublishLogItem } from '../types/app.ts';
 
@@ -22,6 +25,7 @@ interface PublishModalProps {
   error: string | null;
   logs: PublishLogItem[];
   onRetry: (dryRun: boolean, force: boolean) => void;
+  onCopyHtml?: () => void;
 }
 
 export const PublishModal: React.FC<PublishModalProps> = ({
@@ -33,8 +37,18 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   error,
   logs,
   onRetry,
+  onCopyHtml,
 }) => {
+  const [hasCopied, setHasCopied] = useState<boolean>(false);
   if (!isOpen) return null;
+
+  const handleCopyFromModal = () => {
+    if (onCopyHtml) {
+      onCopyHtml();
+      setHasCopied(true);
+      setTimeout(() => setHasCopied(false), 2500);
+    }
+  };
 
   const steps = [
     { num: 1, title: '解析 Markdown', desc: '提取 Front Matter、标题与摘要' },
@@ -204,6 +218,47 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                     2. 将上方提示中报错的公网 IP 填入白名单列表。<br />
                     3. 保存后等待约 1~2 分钟生效，然后重新尝试推送。
                   </p>
+                </div>
+              )}
+
+              {/* 20,000 Limit Guide & One-click Rich Text Copy Solution */}
+              {(error.includes('20,000') || error.includes('20000') || error.includes('硬性上限')) && (
+                <div className="p-3.5 bg-neutral-900/95 rounded-xl border border-amber-800/80 text-neutral-200 text-xs space-y-2.5">
+                  <div className="font-semibold text-amber-400 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4" /> 微信公众平台草稿箱 20,000 字符限制解读
+                  </div>
+                  <div className="text-neutral-300 leading-relaxed text-[11px] space-y-1.5">
+                    <p>
+                      • <strong>为什么正文字数很少却提示超限？</strong> 微信官方草稿箱 API (<code className="text-amber-200 bg-neutral-800 px-1 py-0.5 rounded">draft/add</code>) 的 20,000 限制针对的是底层 <strong className="text-amber-300">HTML 代码字符数</strong>（包含每个段落的内联 CSS 样式 <code className="text-amber-200">style="..."</code> 以及转换后微信 CDN 图片超长链接），而非文章的纯汉字字数。
+                    </p>
+                    <p>
+                      • <strong>零限制直推替代方案</strong>：微信公众平台<strong>网页版后台编辑器没有 20,000 字符 API 限制</strong>，支持海量长文排版！点击下方按钮直接复制完整排版，去公众号后台粘贴即可：
+                    </p>
+                  </div>
+                  {onCopyHtml && (
+                    <div className="pt-1">
+                      <button
+                        onClick={handleCopyFromModal}
+                        className={`w-full py-2 px-3 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition shadow-sm ${
+                          hasCopied
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-amber-600 hover:bg-amber-500 text-white'
+                        }`}
+                      >
+                        {hasCopied ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            已复制微信排版富文本！现在可直接去公众号后台粘贴
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            一键复制微信排版富文本（直接粘贴至微信公众平台后台）
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

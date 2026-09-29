@@ -1,6 +1,7 @@
 import juice from 'juice';
 import { sanitizeWechatHtml } from './renderer.ts';
 import { logger } from '../utils/logger.ts';
+import { minifyWechatHtml } from '../utils/htmlMinifier.ts';
 
 export interface ThemeConfig {
   name: string;
@@ -875,5 +876,7 @@ export function inlineWechatStyles(
   }
 
   // Final sanitizer to ensure no <script>, <iframe>, <style>, or on* handlers remain
-  return sanitizeWechatHtml(inlined);
+  const sanitized = sanitizeWechatHtml(inlined);
+  // Auto minify to keep HTML size lean and well within WeChat 20k limit
+  return minifyWechatHtml(sanitized).minifiedHtml;
 }

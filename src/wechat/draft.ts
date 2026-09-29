@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { logger } from '../utils/logger.ts';
+import { minifyWechatHtml } from '../utils/htmlMinifier.ts';
 
 export interface WeChatDraftArticle {
   title: string;
@@ -55,10 +56,25 @@ export async function createWeChatDraft(
   }
 
   const payloadArticles = articlesArray.map((art, idx) => {
+    // 智能极限压缩内联 HTML，自动剔除冗余空格与内联 CSS 空隙
+    if (art.content && art.content.length > 15000 && art.article_type !== 'newspic') {
+      const minified = minifyWechatHtml(art.content);
+      if (minified.savedCharacters > 0) {
+        logger.debug(`[HTML瘦身] 第 ${idx + 1} 篇草稿 HTML 压缩: ${minified.originalLength} -> ${minified.minifiedLength} (瘦身 ${minified.savedCharacters} 字符, -${(minified.compressionRatio * 100).toFixed(1)}%)`);
+        art.content = minified.minifiedHtml;
+      }
+    }
+
     const contentLength = art.content.length;
     const contentBytes = Buffer.byteLength(art.content, 'utf8');
     if (contentLength > 20000) {
-      throw new Error(`第 ${idx + 1} 篇正文 HTML 字符数 (${contentLength}) 超过微信 20,000 字符硬性上限，请精简正文或精简内联排版样式。`);
+      throw new Error(
+        `第 ${idx + 1} 篇正文 HTML 总代码字符数 (${contentLength}) 超过微信公众平台草稿箱 API 硬性上限 20,000 字符。\n` +
+        `【原因解释】：微信 draft/add 接口限制的是包含底层 HTML 标签、内联排版样式 (style) 和微信图片 CDN 超长 URL 的全部代码字符，并非文章纯汉字数。\n` +
+        `【解决方案】：\n` +
+        `1. 点击顶部工具栏「复制富文本」，直接粘贴到微信公众平台网页版后台（网页版无 20,000 字符 API 限制，支持几万字长文排版）；\n` +
+        `2. 或适当精简配图数量或部分段落排版。`
+      );
     }
     if (contentBytes > 1024 * 1024) {
       throw new Error(`第 ${idx + 1} 篇正文 HTML 字节大小 (${(contentBytes / 1024).toFixed(1)}KB) 超过微信 1MB 上限。`);
@@ -136,10 +152,21 @@ export async function updateWeChatDraft(
   const baseUrl = proxyUrl ? proxyUrl.replace(/\/$/, '') : 'https://api.weixin.qq.com';
   const url = `${baseUrl}/cgi-bin/draft/update?access_token=${encodeURIComponent(accessToken)}`;
 
+  if (article.content && article.content.length > 15000 && article.article_type !== 'newspic') {
+    const minified = minifyWechatHtml(article.content);
+    if (minified.savedCharacters > 0) {
+      article.content = minified.minifiedHtml;
+    }
+  }
+
   const contentLength = article.content.length;
   const contentBytes = Buffer.byteLength(article.content, 'utf8');
   if (contentLength > 20000) {
-    throw new Error(`更新草稿正文 HTML 字符数 (${contentLength}) 超过微信 20,000 字符硬性上限，请精简正文或排版样式。`);
+    throw new Error(
+      `更新草稿正文 HTML 总代码字符数 (${contentLength}) 超过微信 20,000 字符硬性上限。\n` +
+      `【原因解释】：微信接口统计的是底层 HTML 与样式全部代码（非纯汉字数）。\n` +
+      `【解决方案】：请在工具栏点击「复制富文本」直接粘贴至微信公众号后台草稿箱。`
+    );
   }
   if (contentBytes > 1024 * 1024) {
     throw new Error(`更新草稿正文 HTML 字节大小 (${(contentBytes / 1024).toFixed(1)}KB) 超过微信 1MB 上限。`);

@@ -3,6 +3,7 @@ import path from 'path';
 import { parseMarkdownFile, ParsedArticle, extractNewspicText } from './markdown/parser.ts';
 import { createMarkdownRenderer } from './markdown/renderer.ts';
 import { inlineWechatStyles } from './markdown/style.ts';
+import { minifyWechatHtml } from './utils/htmlMinifier.ts';
 import { findImageReferences, validateLocalImages, ImageRef } from './image/resolver.ts';
 import {
   processAndUploadImages,
@@ -88,7 +89,16 @@ export function validateArticlePreflight(params: {
     if (!html.trim()) {
       errors.push('正文 HTML 内容不能为空');
     } else if (html.length > 20000) {
-      errors.push(`正文 HTML 字符数 (${html.length}) 超过微信 20,000 字符硬性上限`);
+      const minified = minifyWechatHtml(html);
+      if (minified.minifiedLength > 20000) {
+        errors.push(
+          `正文 HTML 代码总字符数 (${minified.minifiedLength} 字符) 超过微信草稿箱 API 硬性限制 20,000 字符。\n` +
+          `    【说明】：微信接口统计的是底层 HTML 与排版样式全部代码（并非正文纯汉字数）。\n` +
+          `    【解决方案】：\n` +
+          `    1. 可直接点击工具栏「复制富文本」，粘贴到微信公众平台网页版后台草稿箱（网页版无 20,000 字符限制，支持海量长文排版）；\n` +
+          `    2. 或适当精简配图数量或排版样式。`
+        );
+      }
     }
     const htmlBytes = Buffer.byteLength(html, 'utf8');
     if (htmlBytes > 1024 * 1024) {
@@ -390,7 +400,7 @@ export async function runPublishPipeline(options: PublishOptions): Promise<Publi
   notifyStep(3, `处理并上传配图 (${localImagesCount} 张本地图片)`, 'running');
   validateLocalImages(imageRefs);
 
-  const { updatedHtml, uploadedList } = await processAndUploadImages(inlinedHtml, imageRefs, {
+  const { updatedHtml: rawUpdatedHtml, uploadedList } = await processAndUploadImages(inlinedHtml, imageRefs, {
     accessToken,
     proxyUrl: config.wechat.proxy_url,
     concurrency: config.image.upload_concurrency,
@@ -399,6 +409,9 @@ export async function runPublishPipeline(options: PublishOptions): Promise<Publi
     retryInterval: config.publish.retry_interval,
     convertWebp: config.image.convert_webp !== false,
   });
+
+  // 对替换图片链接后的 HTML 再次执行极限瘦身，消除标签冗余空白
+  const updatedHtml = minifyWechatHtml(rawUpdatedHtml).minifiedHtml;
 
   // Upload or resolve cover image
   const { thumb_media_id, coverUrl } = await resolveOrUploadCoverImage(coverPath, baseDir, options.imagesDir, {

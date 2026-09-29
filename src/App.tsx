@@ -753,6 +753,7 @@ export default function App() {
         error={publishError}
         logs={publishLogs}
         onRetry={(dryRun, force) => executePublish(dryRun, force)}
+        onCopyHtml={handleCopyWeChatHtml}
       />
 
       {/* Settings Modal */}

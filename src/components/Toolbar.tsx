@@ -245,7 +245,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         )}
 
         {/* Word count */}
-        <div className="text-neutral-400 px-2 py-0.5 rounded bg-neutral-800/60 border border-neutral-800 text-[11px] sm:text-xs">
+        <div
+          className="text-neutral-400 px-2 py-0.5 rounded bg-neutral-800/60 border border-neutral-800 text-[11px] sm:text-xs"
+          title={`文章纯文本文字数：${charCount} 字（不含底层 HTML 标签与 CSS 排版样式）`}
+        >
           <span className="hidden sm:inline">正文字数: </span>
           <span className="sm:hidden">字数: </span>
           <strong className="text-neutral-200 font-semibold">{charCount}</strong>
@@ -254,19 +257,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         {/* WeChat HTML 20k limit guard */}
         {typeof htmlLength === 'number' && htmlLength > 0 && articleType !== 'newspic' && (
           <div
-            className={`flex items-center space-x-1 px-2 py-0.5 rounded border text-[11px] sm:text-xs ${
+            className={`flex items-center space-x-1 px-2 py-0.5 rounded border text-[11px] sm:text-xs cursor-help ${
               htmlLength > 20000
                 ? 'bg-red-950/60 text-red-300 border-red-800'
                 : htmlLength > 16000
                 ? 'bg-amber-950/60 text-amber-300 border-amber-800'
                 : 'bg-neutral-800/60 text-neutral-400 border-neutral-800'
             }`}
-            title="微信公众平台正文内联 HTML 上限为 20,000 字符。超过可能导致发布失败。"
+            title={`微信公众平台草稿箱 API (draft/add) 针对正文底层 HTML 总字符（含标签、排版内联 CSS 及微信 CDN 图片链接）硬限制为 20,000 字符。\n\n当前状态：\n• 正文纯字数：${charCount} 字\n• HTML 代码总字符：${htmlLength.toLocaleString()} / 20,000 字符\n\n提示：若提示超过 20,000 字符，可直接点击「复制富文本」，直接粘贴到微信公众平台网页版后台（网页版无 20,000 API 字符限制）。`}
           >
             {htmlLength > 20000 && <AlertTriangle className="w-3 h-3 text-red-400" />}
-            <span>HTML: </span>
+            <span className="hidden sm:inline">HTML代码: </span>
+            <span className="sm:hidden">HTML: </span>
             <strong className={htmlLength > 20000 ? 'text-red-300' : 'text-neutral-200'}>
-              {htmlLength > 1000 ? `${(htmlLength / 1000).toFixed(1)}k` : htmlLength}/20k
+              {htmlLength > 15000 ? htmlLength.toLocaleString() : (htmlLength > 1000 ? `${(htmlLength / 1000).toFixed(1)}k` : htmlLength)}/20k
             </strong>
           </div>
         )}
