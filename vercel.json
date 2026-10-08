@@ -1,6 +1,12 @@
 {
   "version": 2,
   "framework": "vite",
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

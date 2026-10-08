@@ -1,4 +1,5 @@
 import express from 'express';
+import axios from 'axios';
 import { loadConfig, AppConfig } from '../src/config.ts';
 import { runPublishPipeline, runMultiPublishPipeline } from '../src/pipeline.ts';
 import { WeChatAuth } from '../src/wechat/auth.ts';
@@ -15,11 +16,46 @@ import { parseMarkdownFile, extractNewspicText } from '../src/markdown/parser.ts
 import { createMarkdownRenderer } from '../src/markdown/renderer.ts';
 import { inlineWechatStyles } from '../src/markdown/style.ts';
 import { generateArticle, testAiConnectivity, PROVIDER_PRESETS } from '../src/ai/generator.ts';
+import { registerExtractArticleRoute } from '../src/wechat/extractArticle.ts';
 
 const app = express();
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+/**
+ * vercel.json rewrites every `/api/*` request to this single function.
+ * Some hosts hand the function the *rewritten* path (`/wechat/extract-article`)
+ * instead of the original one, so normalize it back to the `/api/...` prefix.
+ * Without this, Express would answer with an HTML 404 page and the frontend
+ * would fail with "服务返回非 JSON 响应 (HTTP 404)".
+ */
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/api/') || req.url === '/api') return next();
+
+  const qIndex = req.url.indexOf('?');
+  const pathname = qIndex === -1 ? req.url : req.url.slice(0, qIndex);
+  const search = qIndex === -1 ? '' : req.url.slice(qIndex);
+
+  const known =
+    pathname === '/health' ||
+    pathname === '/config' ||
+    pathname.startsWith('/config/') ||
+    pathname === '/draft' ||
+    pathname === '/history' ||
+    pathname === '/publish' ||
+    pathname === '/render' ||
+    pathname === '/local-image' ||
+    pathname.startsWith('/media/') ||
+    pathname.startsWith('/watch/') ||
+    pathname.startsWith('/ai/') ||
+    pathname.startsWith('/wechat/');
+
+  if (known) {
+    req.url = `/api${pathname}${search}`;
+  }
+  next();
+});
 
 // Memory runtime config
 let currentConfig: AppConfig = loadConfig();
@@ -447,6 +483,68 @@ app.post('/api/ai/test-key', async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || '测试连接失败' });
   }
+});
+
+// API 8.7: Permanent media materials from WeChat asset library (serverless)
+app.get('/api/wechat/materials', async (req, res) => {
+  try {
+    const offset = parseInt(String(req.query.offset || '0'), 10);
+    const count = parseInt(String(req.query.count || '20'), 10);
+
+    if (!currentConfig.wechat.app_id || !currentConfig.wechat.app_secret) {
+      return res.json({
+        total_count: 0,
+        item_count: 0,
+        item: [],
+        message: '未配置微信凭据',
+      });
+    }
+
+    const auth = new WeChatAuth(
+      currentConfig.wechat.app_id,
+      currentConfig.wechat.app_secret,
+      currentConfig.wechat.proxy_url
+    );
+    const token = await auth.getAccessToken();
+
+    const response = await axios.post(
+      `https://api.weixin.qq.com/cgi-bin/material/batchget_material?access_token=${token}`,
+      { type: 'image', offset, count: Math.min(count, 20) },
+      { timeout: 15000 }
+    );
+
+    res.json(response.data);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || '获取微信永久素材库失败' });
+  }
+});
+
+// API 8.75: WeChat online article reverse extractor (shared implementation)
+registerExtractArticleRoute(app);
+
+// API 8.9: Directory watch mode is desktop/localhost only
+const watchUnsupported = (_req: any, res: any) => {
+  res.status(400).json({
+    isWatching: false,
+    logs: [],
+    error: '云端部署不支持目录监听（Serverless 环境无持久文件系统），请使用桌面客户端或在本地运行 npm run dev',
+  });
+};
+app.get('/api/watch/status', watchUnsupported);
+app.post('/api/watch/start', watchUnsupported);
+app.post('/api/watch/stop', watchUnsupported);
+
+// Local image resolver: unavailable in the serverless runtime
+app.get('/api/local-image', (_req, res) => {
+  res.status(404).json({ error: '云端部署无法读取本地图片，请改用可公网访问的图片 URL' });
+});
+
+// Catch-all: always answer with JSON so the frontend never sees an HTML error page
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `接口不存在: ${req.method} ${req.path}（云端函数仅注册了部分接口，本地 Node 服务功能更完整）`,
+  });
 });
 
 export default app;

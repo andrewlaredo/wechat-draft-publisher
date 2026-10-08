@@ -911,6 +911,17 @@ func HandleNativeAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Desktop-only guard: the online article reverse extractor is implemented in
+	// the Node service (src/wechat/extractArticle.ts). Return an explicit JSON error
+	// instead of the generic success payload so the UI does not silently do nothing.
+	if path == "/api/wechat/extract-article" && r.Method == http.MethodPost {
+		writeJSON(w, http.StatusNotImplemented, map[string]interface{}{
+			"success": false,
+			"error":   "桌面内置服务未实现「微信文章逆向提取」，请启动本地 Node 服务 (npm run dev) 后重试",
+		})
+		return
+	}
+
 	// Default fallback for any /api route: Always return valid JSON
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
