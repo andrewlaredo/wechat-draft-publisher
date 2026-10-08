@@ -12,12 +12,24 @@ import { SponsorModal } from './components/SponsorModal.tsx';
 import { WelcomeGuideModal } from './components/WelcomeGuideModal.tsx';
 import { HelpGuideModal } from './components/HelpGuideModal.tsx';
 import { NoCredentialsNoticeModal } from './components/NoCredentialsNoticeModal.tsx';
+import { ThemeDesignerModal } from './components/ThemeDesignerModal.tsx';
+import { MultiArticleComposerModal, MultiArticleDraftItem } from './components/MultiArticleComposerModal.tsx';
+import { MatrixPublishModal } from './components/MatrixPublishModal.tsx';
+import { WatchModeModal } from './components/WatchModeModal.tsx';
+import {
+  WeChatAccountConfig,
+  getStoredAccounts,
+  getActiveAccountId,
+  setActiveAccountId,
+} from './utils/accountManager.ts';
+import { saveSnapshot } from './utils/snapshotManager.ts';
 import { SAMPLE_ARTICLES } from './data/samples.ts';
 import { ArticleMeta, PublishHistoryItem, PublishLogItem } from './types/app.ts';
 import { GeneratedArticleResult } from './ai/generator.ts';
 import { wechatHtmlToMarkdown } from './markdown/html2md.ts';
 import { safeFetchJson } from './utils/safeFetch.ts';
 import { renderMarkdownLocally } from './markdown/clientRender.ts';
+import { getCustomThemes, ThemeConfig } from './markdown/style.ts';
 
 const LOCAL_STORAGE_DRAFT_KEY = 'wechat_draft_auto_save_v1';
 const LOCAL_STORAGE_CONFIG_KEY = 'wechat_publisher_client_config_v1';
@@ -246,6 +258,44 @@ export default function App() {
   });
   const [isHelpGuideOpen, setIsHelpGuideOpen] = useState<boolean>(false);
   const [isNoCredentialsPromptOpen, setIsNoCredentialsPromptOpen] = useState<boolean>(false);
+  const [isThemeDesignerOpen, setIsThemeDesignerOpen] = useState<boolean>(false);
+  const [isMultiArticleOpen, setIsMultiArticleOpen] = useState<boolean>(false);
+  const [isMatrixPublishOpen, setIsMatrixPublishOpen] = useState<boolean>(false);
+  const [isWatchModeOpen, setIsWatchModeOpen] = useState<boolean>(false);
+  const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
+  const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
+
+  const handleSwitchAccount = async (id: string) => {
+    setActiveAccountId(id);
+    setActiveAccountIdState(id);
+    const target = accounts.find((a) => a.id === id);
+    if (target) {
+      await handleSaveSettings({
+        appId: target.appId,
+        appSecret: target.appSecret,
+        proxyUrl: target.proxyUrl,
+      });
+      showToast(`已切换当前公众号目标为「${target.name}」！`);
+    }
+  };
+
+  const [customThemes, setCustomThemes] = useState<Record<string, ThemeConfig>>(() => {
+    return getCustomThemes();
+  });
+
+  // Multi-article series state (P0: 可视化多图文拖拽编排)
+  const [currentArticleId, setCurrentArticleId] = useState<string>('draft-primary');
+  const [multiArticles, setMultiArticles] = useState<MultiArticleDraftItem[]>(() => [
+    {
+      id: 'draft-primary',
+      title: '微信公众号草稿自动化发布实战指南',
+      author: '科技探索者',
+      digest: '探索如何通过 Markdown 快速排版、自动内联样式并将图文无缝推送到微信公众号草稿箱，提升自媒体创作者效率。',
+      markdown: SAMPLE_ARTICLES[0].markdown,
+      cover: './images/01-mars-default.png',
+      theme: 'tech-blue',
+    },
+  ]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [htmlLength, setHtmlLength] = useState<number>(0);
 
@@ -322,10 +372,12 @@ export default function App() {
   // 2. Render markdown to inlined HTML (100% Client-side authoritative engine)
   useEffect(() => {
     try {
+      const customThemeConfig = customThemes[activeTheme];
       const localResult = renderMarkdownLocally(markdown, {
         theme: activeTheme,
         themeEnabled,
         macStyle,
+        customThemeConfig,
       });
 
       setInlinedHtml(localResult.inlinedHtml);
@@ -346,7 +398,7 @@ export default function App() {
     } catch (localErr) {
       console.warn('Local render fallback error:', localErr);
     }
-  }, [markdown, activeTheme, themeEnabled, macStyle]);
+  }, [markdown, activeTheme, themeEnabled, macStyle, customThemes]);
 
   // 3. Handle Template Selection
   const handleSelectSample = (sampleId: string) => {
@@ -452,6 +504,58 @@ export default function App() {
     }));
   };
 
+  // 3.7 Handle Custom Theme Application
+  const handleApplyCustomTheme = (themeConfig: ThemeConfig) => {
+    setCustomThemes(getCustomThemes());
+    setActiveTheme(themeConfig.name);
+    setMultiArticles((articles) =>
+      articles.map((item) => (item.id === currentArticleId ? { ...item, theme: themeConfig.name } : item))
+    );
+    showToast(`🎨 已成功应用主题「${themeConfig.label}」`);
+  };
+
+  // 3.8 Handle Multi-article Item Selection
+  const handleSelectMultiArticle = (articleId: string) => {
+    const found = multiArticles.find((a) => a.id === articleId);
+    if (found) {
+      setCurrentArticleId(found.id);
+      setMarkdown(found.markdown);
+      if (found.theme) setActiveTheme(found.theme);
+      setMetadata((prev) => ({
+        ...prev,
+        title: found.title,
+        author: found.author,
+        digest: found.digest,
+        cover: found.cover,
+        theme: found.theme || prev.theme,
+      }));
+      showToast(`📑 已切换编辑「${found.title}」`);
+    }
+  };
+
+  // 3.9 Handle Multi-article List Update
+  const handleUpdateMultiArticles = (updatedArticles: MultiArticleDraftItem[]) => {
+    setMultiArticles(updatedArticles);
+    const current = updatedArticles.find((a) => a.id === currentArticleId);
+    if (current) {
+      setMetadata((prev) => ({
+        ...prev,
+        title: current.title,
+        author: current.author,
+        digest: current.digest,
+        cover: current.cover,
+        theme: current.theme || prev.theme,
+      }));
+    }
+  };
+
+  const handleMarkdownChange = (newMd: string) => {
+    setMarkdown(newMd);
+    setMultiArticles((articles) =>
+      articles.map((item) => (item.id === currentArticleId ? { ...item, markdown: newMd } : item))
+    );
+  };
+
   // 4. Update metadata from Form tab (sync back to markdown front matter)
   const handleMetadataChange = (updated: Partial<ArticleMeta>) => {
     const newMeta = { ...metadata, ...updated };
@@ -459,6 +563,20 @@ export default function App() {
       setArticleType(updated.article_type);
     }
     setMetadata(newMeta);
+    setMultiArticles((articles) =>
+      articles.map((item) =>
+        item.id === currentArticleId
+          ? {
+              ...item,
+              title: newMeta.title,
+              author: newMeta.author,
+              digest: newMeta.digest,
+              cover: newMeta.cover || item.cover,
+              theme: activeTheme,
+            }
+          : item
+      )
+    );
 
     // Replace or add front matter in markdown
     const hasFrontMatter = /^---\r?\n[\s\S]*?\r?\n---/m.test(markdown);
@@ -520,6 +638,17 @@ export default function App() {
     setPublishError(null);
     setPublishLogs([]);
     setIsPublishModalOpen(true);
+
+    // Save milestone snapshot before publishing
+    if (!dryRun) {
+      saveSnapshot({
+        title: metadata.title,
+        markdown,
+        theme: activeTheme,
+        tag: 'publish',
+        label: `推送草稿箱前备份 (${new Date().toLocaleTimeString()})`,
+      });
+    }
 
     try {
       const publishBody = {
@@ -674,7 +803,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-neutral-900 text-neutral-100 overflow-hidden font-sans">
-      {/* Header */}
+      {/* Header: Global Tools & Distribution */}
       <Header
         onPublish={handlePublishClick}
         onCopyHtml={handleCopyWeChatHtml}
@@ -684,15 +813,25 @@ export default function App() {
         onOpenDraftManager={() => setIsDraftManagerOpen(true)}
         onOpenSponsor={() => setIsSponsorOpen(true)}
         onOpenHelpGuide={() => setIsHelpGuideOpen(true)}
+        onOpenMatrixPublish={() => setIsMatrixPublishOpen(true)}
+        onOpenWatchMode={() => setIsWatchModeOpen(true)}
+        accounts={accounts}
+        activeAccountId={activeAccountId}
+        onSwitchAccount={handleSwitchAccount}
         isCopied={isCopied}
         hasCredentials={!!config.appId && config.hasSecret}
         isPublishing={isPublishing}
       />
 
-      {/* Toolbar */}
+      {/* Toolbar: Editor, Layouts & Themes */}
       <Toolbar
         currentTheme={activeTheme}
-        onThemeChange={(th) => setActiveTheme(th)}
+        onThemeChange={(th) => {
+          setActiveTheme(th);
+          setMultiArticles((articles) =>
+            articles.map((item) => (item.id === currentArticleId ? { ...item, theme: th } : item))
+          );
+        }}
         themeEnabled={themeEnabled}
         onToggleThemeEnabled={() => setThemeEnabled((prev) => !prev)}
         articleType={articleType}
@@ -710,6 +849,10 @@ export default function App() {
         htmlLength={htmlLength}
         digestLength={metadata.digest.length}
         lastSaved={lastSaved}
+        onOpenThemeDesigner={() => setIsThemeDesignerOpen(true)}
+        customThemes={customThemes}
+        onOpenMultiArticleComposer={() => setIsMultiArticleOpen(true)}
+        multiArticlesCount={multiArticles.length}
       />
 
       {/* Main Workspace: Split Pane */}
@@ -718,7 +861,7 @@ export default function App() {
         <div className="w-full md:w-1/2 lg:w-5/12 h-full flex flex-col min-h-0">
           <MarkdownEditor
             markdown={markdown}
-            onMarkdownChange={(val) => setMarkdown(val)}
+            onMarkdownChange={handleMarkdownChange}
             metadata={metadata}
             onMetadataChange={handleMetadataChange}
             history={history}
@@ -766,6 +909,10 @@ export default function App() {
         onSave={handleSaveSettings}
         onTestToken={handleTestToken}
         onReloadConfig={handleReloadConfig}
+        onAccountsChange={(nextAccs, nextActiveId) => {
+          setAccounts(nextAccs);
+          setActiveAccountIdState(nextActiveId);
+        }}
       />
 
       {/* CLI Modal */}
@@ -793,6 +940,18 @@ export default function App() {
           markdown,
           digest: metadata.digest,
           cover: metadata.cover,
+        }}
+        onApplyThumbMediaId={(thumbMediaId, coverUrl) => {
+          setMetadata((prev) => ({
+            ...prev,
+            thumb_media_id: thumbMediaId,
+            cover: coverUrl || prev.cover,
+          }));
+          showToast(`✨ 已成功绑定已有永久素材 MediaID 作为封面！`);
+        }}
+        onInsertImageToEditor={(imageMd) => {
+          setMarkdown((prev) => `${prev}\n${imageMd}`);
+          showToast(`🖼️ 已将素材图片插入正文！`);
         }}
       />
 
@@ -845,6 +1004,56 @@ export default function App() {
         onCopyHtml={() => {
           setIsNoCredentialsPromptOpen(false);
           handleCopyWeChatHtml();
+        }}
+      />
+
+      {/* Custom CSS & Theme Designer Modal (P0-1) */}
+      <ThemeDesignerModal
+        isOpen={isThemeDesignerOpen}
+        onClose={() => setIsThemeDesignerOpen(false)}
+        currentTheme={activeTheme}
+        onApplyTheme={handleApplyCustomTheme}
+      />
+
+      {/* Multi-article Visual Composer Modal (P0-2) */}
+      <MultiArticleComposerModal
+        isOpen={isMultiArticleOpen}
+        onClose={() => setIsMultiArticleOpen(false)}
+        articles={multiArticles}
+        currentArticleId={currentArticleId}
+        onSelectArticle={handleSelectMultiArticle}
+        onUpdateArticles={handleUpdateMultiArticles}
+        defaultAuthor={metadata.author || '公众号作者'}
+        defaultTheme={activeTheme}
+      />
+
+      {/* Multi-platform Matrix Publisher Modal (P0-3) */}
+      <MatrixPublishModal
+        isOpen={isMatrixPublishOpen}
+        onClose={() => setIsMatrixPublishOpen(false)}
+        markdown={markdown}
+        inlinedHtml={inlinedHtml}
+        metadata={{
+          title: metadata.title,
+          author: metadata.author,
+          digest: metadata.digest,
+          cover: metadata.cover,
+          images: scannedImages,
+        }}
+        onPublishWeChat={(dryRun) => {
+          setIsMatrixPublishOpen(false);
+          executePublish(dryRun);
+        }}
+        onCopyWeChatHtml={handleCopyWeChatHtml}
+      />
+
+      {/* Directory Watch Mode Modal (P1-6) */}
+      <WatchModeModal
+        isOpen={isWatchModeOpen}
+        onClose={() => setIsWatchModeOpen(false)}
+        onSyncDraftToEditor={(md) => {
+          setMarkdown(md);
+          showToast('已从本地监听文件同步最新内容！');
         }}
       />
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Send,
   Terminal,
@@ -11,7 +11,13 @@ import {
   Inbox,
   Heart,
   HelpCircle,
+  Share2,
+  Layers,
+  FolderSync,
+  ChevronDown,
+  UserCheck,
 } from 'lucide-react';
+import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
 interface HeaderProps {
   onPublish: (dryRun: boolean) => void;
@@ -22,6 +28,11 @@ interface HeaderProps {
   onOpenDraftManager: () => void;
   onOpenSponsor: () => void;
   onOpenHelpGuide: () => void;
+  onOpenMatrixPublish?: () => void;
+  onOpenWatchMode?: () => void;
+  accounts?: WeChatAccountConfig[];
+  activeAccountId?: string | null;
+  onSwitchAccount?: (id: string) => void;
   isCopied: boolean;
   hasCredentials: boolean;
   isPublishing: boolean;
@@ -36,10 +47,29 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDraftManager,
   onOpenSponsor,
   onOpenHelpGuide,
+  onOpenMatrixPublish,
+  onOpenWatchMode,
+  accounts = [],
+  activeAccountId,
+  onSwitchAccount,
   isCopied,
   hasCredentials,
   isPublishing,
 }) => {
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  const activeAccount = accounts.find((a) => a.id === activeAccountId) || accounts[0];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   return (
     <header className="bg-neutral-900/95 backdrop-blur border-b border-neutral-800 sticky top-0 z-30 px-3 sm:px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2">
       {/* Brand */}
@@ -98,6 +128,19 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline md:hidden">AI 撰文</span>
         </button>
 
+        {/* Multi-platform Matrix Publisher Button */}
+        {onOpenMatrixPublish && (
+          <button
+            onClick={onOpenMatrixPublish}
+            id="btn-header-matrix-publish"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white shadow-xs border border-amber-500/40 transition"
+            title="一键多渠道矩阵分发（微信、知乎、稀土掘金、CSDN、小红书贴图）"
+          >
+            <Share2 className="w-3.5 h-3.5 text-amber-200" />
+            <span className="hidden lg:inline">多平台矩阵</span>
+          </button>
+        )}
+
         {/* Draft Box & Multi-article Management */}
         <button
           onClick={onOpenDraftManager}
@@ -132,6 +175,74 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5 ring-2 ring-neutral-900 animate-pulse" />
           )}
         </button>
+
+        {/* Multi-Account Fast Switcher */}
+        {accounts.length > 0 && onSwitchAccount && (
+          <div className="relative" ref={accountMenuRef}>
+            <button
+              onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+              id="btn-account-switcher"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 transition"
+              title="一键快速切换目标公众号凭据"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+              <span className="max-w-[90px] truncate hidden md:inline">
+                {activeAccount?.name || '默认公众号'}
+              </span>
+              <ChevronDown className={`w-3 h-3 text-neutral-400 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isAccountMenuOpen && (
+              <div className="absolute right-0 mt-1.5 w-56 rounded-xl bg-neutral-850 border border-neutral-700 shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-1.5 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider border-b border-neutral-800">
+                  切换目标公众号
+                </div>
+                {accounts.map((acc) => (
+                  <button
+                    key={acc.id}
+                    onClick={() => {
+                      onSwitchAccount(acc.id);
+                      setIsAccountMenuOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between hover:bg-neutral-800 transition ${
+                      acc.id === activeAccount?.id ? 'text-emerald-400 font-semibold bg-emerald-950/30' : 'text-neutral-200'
+                    }`}
+                  >
+                    <div className="truncate pr-2">
+                      <div className="truncate">{acc.name}</div>
+                      <div className="text-[10px] text-neutral-500 font-mono truncate">{acc.appId}</div>
+                    </div>
+                    {acc.id === activeAccount?.id && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                  </button>
+                ))}
+                <div className="pt-1 mt-1 border-t border-neutral-800">
+                  <button
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      onOpenSettings();
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-[11px] text-blue-400 hover:bg-neutral-800 transition flex items-center gap-1"
+                  >
+                    <span>+ 管理多账号凭据</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Local Directory Watch Mode Trigger */}
+        {onOpenWatchMode && (
+          <button
+            onClick={onOpenWatchMode}
+            id="btn-open-watch-mode"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition"
+            title="本地目录监听自动发布模式 (Obsidian / Notion / VS Code 自动同步微信草稿箱)"
+          >
+            <FolderSync className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden xl:inline">监听模式</span>
+          </button>
+        )}
 
         {/* Help & Guide Modal button */}
         <button

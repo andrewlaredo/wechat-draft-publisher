@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Inbox,
@@ -42,6 +42,8 @@ interface DraftManagementModalProps {
     digest: string;
     cover?: string;
   };
+  onApplyThumbMediaId?: (thumbMediaId: string, coverUrl?: string) => void;
+  onInsertImageToEditor?: (text: string) => void;
 }
 
 export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
@@ -49,14 +51,47 @@ export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
   onClose,
   onLoadDraftIntoEditor,
   currentEditorArticle,
+  onApplyThumbMediaId,
+  onInsertImageToEditor,
 }) => {
-  const [activeTab, setActiveTab] = useState<'drafts' | 'multi' | 'cache'>('drafts');
+  const [activeTab, setActiveTab] = useState<'drafts' | 'multi' | 'materials' | 'cache'>('drafts');
 
   // Drafts state
   const [drafts, setDrafts] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
+
+  // Cloud materials state
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [totalMaterials, setTotalMaterials] = useState(0);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [materialError, setMaterialError] = useState<string | null>(null);
+  const [copiedMediaId, setCopiedMediaId] = useState<string | null>(null);
+
+  const fetchMaterials = useCallback(async () => {
+    setLoadingMaterials(true);
+    setMaterialError(null);
+    try {
+      const res = await safeFetchJson('/api/wechat/materials?offset=0&count=20');
+      if (res.ok && res.data) {
+        setMaterials(res.data.item || []);
+        setTotalMaterials(res.data.total_count || (res.data.item ? res.data.item.length : 0));
+      } else {
+        setMaterialError(res.error || '获取素材库失败');
+      }
+    } catch (err: any) {
+      setMaterialError(err.message || '网络请求错误');
+    } finally {
+      setLoadingMaterials(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'materials') {
+      fetchMaterials();
+    }
+  }, [isOpen, activeTab, fetchMaterials]);
 
   // Free publish state
   const [publishingMediaId, setPublishingMediaId] = useState<string | null>(null);
@@ -656,6 +691,18 @@ export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
           >
             <Layers className="w-4 h-4" />
             <span>多图文合集创建 (上限8篇)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('materials')}
+            className={`py-3 flex items-center space-x-2 border-b-2 transition ${
+              activeTab === 'materials'
+                ? 'border-blue-500 text-blue-400 font-semibold'
+                : 'border-transparent text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span>云端素材库 ({totalMaterials})</span>
           </button>
 
           <button
@@ -1309,7 +1356,130 @@ export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
           )}
 
           {/* ==================================================== */}
-          {/* TAB 3: MEDIA CACHE & OPTIMIZATION */}
+          {/* TAB 3: CLOUD PERMANENT ASSET LIBRARY */}
+          {/* ==================================================== */}
+          {activeTab === 'materials' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-neutral-200 text-xs flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-blue-400" />
+                    公众号已存永久图片素材库 (批量获取)
+                  </h4>
+                  <p className="text-neutral-400 text-[11px] mt-0.5">
+                    直接复用公众号已有永久图片素材，免除重复上传与流量消耗。共查询到 <span className="text-neutral-200 font-semibold">{totalMaterials}</span> 张素材：
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchMaterials}
+                  disabled={loadingMaterials}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingMaterials ? 'animate-spin' : ''}`} />
+                  <span>刷新素材库</span>
+                </button>
+              </div>
+
+              {materialError && (
+                <div className="p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{materialError}</span>
+                </div>
+              )}
+
+              {loadingMaterials ? (
+                <div className="py-16 flex flex-col items-center justify-center space-y-2 text-neutral-400">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                  <span>正在从微信永久素材库获取云端图片列表...</span>
+                </div>
+              ) : materials.length === 0 ? (
+                <div className="py-16 text-center text-neutral-500 bg-neutral-850 rounded-xl border border-neutral-800">
+                  当前公众号素材库暂无图片记录或尚未配置 AppID/Secret。
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[55vh] overflow-y-auto p-1">
+                  {materials.map((item, idx) => {
+                    const isCopied = copiedMediaId === item.media_id;
+                    return (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl bg-neutral-850 border border-neutral-800 hover:border-neutral-700 transition flex flex-col justify-between space-y-2 group"
+                      >
+                        <div className="aspect-video w-full rounded-lg bg-neutral-900 overflow-hidden border border-neutral-800 relative flex items-center justify-center">
+                          <img
+                            src={item.url}
+                            alt={item.name}
+                            className="w-full h-full object-cover transition group-hover:scale-105 duration-200"
+                            loading="lazy"
+                          />
+                        </div>
+
+                        <div className="space-y-1 min-w-0">
+                          <div className="font-semibold text-neutral-200 text-xs truncate" title={item.name}>
+                            {item.name || '未命名图片'}
+                          </div>
+                          <div className="text-[10px] text-neutral-500 font-mono truncate" title={item.media_id}>
+                            ID: {item.media_id}
+                          </div>
+                        </div>
+
+                        <div className="pt-1.5 border-t border-neutral-800/80 flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(item.media_id);
+                                setCopiedMediaId(item.media_id);
+                                setTimeout(() => setCopiedMediaId(null), 2000);
+                              }}
+                              className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded text-[10px] font-mono transition flex-1 text-center"
+                            >
+                              {isCopied ? '已复制ID' : '复制 MediaID'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onInsertImageToEditor) {
+                                  onInsertImageToEditor(`\n![${item.name || '素材'}](${item.url})\n`);
+                                  alert('已直接插入图片到当前 Markdown 编辑器！');
+                                } else {
+                                  navigator.clipboard.writeText(`![${item.name || '素材'}](${item.url})`);
+                                  alert('已复制 Markdown 图片标签！直接在编辑器粘贴即可。');
+                                }
+                              }}
+                              className="px-2 py-1 bg-blue-900/60 hover:bg-blue-800/60 text-blue-300 rounded text-[10px] transition shrink-0"
+                              title="直接插入或复制 Markdown 图片语法"
+                            >
+                              插入正文
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onApplyThumbMediaId) {
+                                onApplyThumbMediaId(item.media_id, item.url);
+                              } else {
+                                navigator.clipboard.writeText(item.media_id);
+                                alert(`已复制 thumb_media_id: ${item.media_id}`);
+                              }
+                            }}
+                            className="w-full py-1 bg-emerald-900/50 hover:bg-emerald-800/60 text-emerald-300 border border-emerald-700/60 rounded text-[10px] font-medium transition text-center"
+                            title="直接复用已有 thumb_media_id 作为当前文章封面，免除重复上传与流量消耗"
+                          >
+                            ⭐ 复用已有 MediaID 为封面
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================================================== */}
+          {/* TAB 4: MEDIA CACHE & OPTIMIZATION */}
           {/* ==================================================== */}
           {activeTab === 'cache' && (
             <div className="space-y-4">

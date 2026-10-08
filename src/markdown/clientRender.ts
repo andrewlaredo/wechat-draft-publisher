@@ -1,6 +1,6 @@
 import yaml from 'yaml';
 import { createMarkdownRenderer } from './renderer.ts';
-import { inlineWechatStyles } from './style.ts';
+import { inlineWechatStyles, ThemeConfig } from './style.ts';
 import { extractNewspicText } from './parser.ts';
 
 export interface RenderResult {
@@ -39,6 +39,7 @@ export function renderMarkdownLocally(
     macStyle?: boolean;
     codeTheme?: string;
     defaultAuthor?: string;
+    customThemeConfig?: ThemeConfig;
   } = {}
 ): RenderResult {
   const {
@@ -47,6 +48,7 @@ export function renderMarkdownLocally(
     macStyle = true,
     codeTheme = 'github',
     defaultAuthor = '公众号作者',
+    customThemeConfig,
   } = options;
 
   let frontMatterData: Record<string, any> = {};
@@ -135,7 +137,7 @@ export function renderMarkdownLocally(
   });
 
   const rawHtml = renderer.render(content);
-  const inlinedHtml = inlineWechatStyles(rawHtml, activeTheme, themeEnabled);
+  const inlinedHtml = inlineWechatStyles(rawHtml, activeTheme, themeEnabled, customThemeConfig);
   const newspicCaption = extractNewspicText(content);
 
   return {

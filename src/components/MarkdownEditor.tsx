@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Sliders,
@@ -20,10 +20,24 @@ import {
   AlertTriangle,
   FolderOpen,
   Download,
+  RotateCcw,
+  Camera,
+  Trash2,
+  FileCheck,
+  Minimize2,
+  UploadCloud,
 } from 'lucide-react';
 import { ArticleMeta, PublishHistoryItem } from '../types/app.ts';
 import { wechatHtmlToMarkdown, isHtmlContent } from '../markdown/html2md.ts';
 import { pickNativeMarkdown, saveNativeMarkdown, isWails } from '../utils/wails.ts';
+import { InteractiveComponentsModal } from './InteractiveComponentsModal.tsx';
+import {
+  getSnapshots,
+  saveSnapshot,
+  deleteSnapshot,
+  DocumentSnapshot,
+} from '../utils/snapshotManager.ts';
+import { compressImageClient, CompressionResult } from '../utils/imageCompressor.ts';
 
 interface MarkdownEditorProps {
   markdown: string;
@@ -46,6 +60,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'metadata' | 'images' | 'history'>('editor');
   const [cleanNotice, setCleanNotice] = useState<string | null>(null);
+  const [isComponentsModalOpen, setIsComponentsModalOpen] = useState(false);
+
+  // Snapshots state
+  const [snapshots, setSnapshots] = useState<DocumentSnapshot[]>(() => getSnapshots());
+  const [historySubTab, setHistorySubTab] = useState<'snapshots' | 'publish'>('snapshots');
+
+  // Image compression state
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null);
 
   const handlePurifyHtml = () => {
     const fmMatch = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
@@ -66,6 +89,120 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
     setCleanNotice('已成功纯化富文本 HTML 为标准 Markdown！');
     setTimeout(() => setCleanNotice(null), 3000);
+  };
+
+  const handleCreateSnapshot = () => {
+    const saved = saveSnapshot({
+      title: metadata.title,
+      markdown,
+      theme: metadata.theme,
+      tag: 'manual',
+      label: `手动保存 (${new Date().toLocaleTimeString()})`,
+    });
+    if (saved) {
+      setSnapshots(getSnapshots());
+      setCleanNotice('📸 已成功保存当前文档版本快照！');
+      setTimeout(() => setCleanNotice(null), 3000);
+    }
+  };
+
+  const handleRollbackSnapshot = (snap: DocumentSnapshot) => {
+    if (confirm(`确定回滚还原至版本「${snap.label}」吗？当前编辑器中的内容将被覆盖。`)) {
+      onMarkdownChange(snap.markdown);
+      setCleanNotice(`⏪ 已成功回滚至 ${new Date(snap.timestamp).toLocaleTimeString()} 版本！`);
+      setTimeout(() => setCleanNotice(null), 3500);
+    }
+  };
+
+  const handleDeleteSnapshot = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteSnapshot(id);
+    setSnapshots(getSnapshots());
+  };
+
+  // Periodic auto-snapshot
+  useEffect(() => {
+    if (!markdown || markdown.trim().length < 20) return;
+    const timer = setTimeout(() => {
+      const saved = saveSnapshot({
+        title: metadata.title,
+        markdown,
+        theme: metadata.theme,
+        tag: 'auto',
+        label: `自动快照 (${new Date().toLocaleTimeString()})`,
+      });
+      if (saved) {
+        setSnapshots(getSnapshots());
+      }
+    }, 30000);
+
+    return () => clearTimeout(timer);
+  }, [markdown, metadata.title, metadata.theme]);
+
+  const handleCompressFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsCompressing(true);
+    try {
+      const res = await compressImageClient(file, { maxSizeKB: 1200 });
+      setCompressionResult(res);
+      setCleanNotice(`⚡ 图片无损压缩完成：${(res.originalSize / 1024).toFixed(0)}KB ➔ ${(res.compressedSize / 1024).toFixed(0)}KB (节省 ${res.savedPercent}%)！`);
+      setTimeout(() => setCleanNotice(null), 4000);
+    } catch (err: any) {
+      alert(`图片压缩处理失败: ${err.message}`);
+    } finally {
+      setIsCompressing(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleEditorPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        setIsCompressing(true);
+        try {
+          const res = await compressImageClient(file, { maxSizeKB: 1000 });
+          setCompressionResult(res);
+          insertText(`\n![剪贴板配图](${res.dataUrl})\n`);
+          setCleanNotice(`⚡ 剪贴板图片已离线无损压缩：${(res.originalSize / 1024).toFixed(0)}KB ➔ ${(res.compressedSize / 1024).toFixed(0)}KB (节省 ${res.savedPercent}%) 并插入正文！`);
+          setTimeout(() => setCleanNotice(null), 4000);
+        } catch (err: any) {
+          alert(`图片压缩处理失败: ${err.message}`);
+        } finally {
+          setIsCompressing(false);
+        }
+        return;
+      }
+    }
+  };
+
+  const handleEditorDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.type.startsWith('image/')) {
+      e.preventDefault();
+      setIsCompressing(true);
+      try {
+        const res = await compressImageClient(file, { maxSizeKB: 1000 });
+        setCompressionResult(res);
+        insertText(`\n![拖拽配图](${res.dataUrl})\n`);
+        setCleanNotice(`⚡ 拖拽图片已离线无损压缩：${(res.originalSize / 1024).toFixed(0)}KB ➔ ${(res.compressedSize / 1024).toFixed(0)}KB (节省 ${res.savedPercent}%) 并插入正文！`);
+        setTimeout(() => setCleanNotice(null), 4000);
+      } catch (err: any) {
+        alert(`图片压缩处理失败: ${err.message}`);
+      } finally {
+        setIsCompressing(false);
+      }
+    }
   };
 
   const insertText = (before: string, after = '') => {
@@ -278,6 +415,33 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <span className="w-px h-3.5 bg-neutral-700 mx-0.5" />
             <button
               type="button"
+              onClick={() => setIsComponentsModalOpen(true)}
+              className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-600/30 to-rose-600/30 hover:from-amber-600/50 hover:to-rose-600/50 text-amber-300 border border-amber-500/40 text-[11px] font-medium transition flex items-center space-x-1"
+              title="插入微信公众号专属特色互动组件 (吸顶卡片、点击展开答疑、左右滑动图集、引导在看、LaTeX公式与Mermaid图表)"
+            >
+              <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+              <span>特色组件</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => insertText('\n$$\n\\int_{-\\infty}^{+\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}\n$$\n')}
+              className="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-indigo-300 border border-indigo-700/50 text-[11px] font-medium transition flex items-center space-x-1"
+              title="插入 LaTeX / KaTeX 数学公式（自动渲染为高保真图片/内联HTML，绕过微信无原生MathML限制）"
+            >
+              <span>fx 公式</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => insertText('\n```mermaid\ngraph TD\n  A[开始] --> B[处理]\n  B --> C[完成]\n```\n')}
+              className="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-cyan-300 border border-cyan-700/50 text-[11px] font-medium transition flex items-center space-x-1"
+              title="插入 Mermaid 流程图 / 时序图（自动直出矢量 SVG 卡片）"
+            >
+              <span>Mermaid</span>
+            </button>
+
+            <span className="w-px h-3.5 bg-neutral-700 mx-0.5" />
+            <button
+              type="button"
               onClick={handlePurifyHtml}
               className="px-2 py-0.5 rounded hover:bg-emerald-900/40 text-emerald-400 hover:text-emerald-300 transition text-[11px] flex items-center space-x-1"
               title="如果正文包含微信或网页 HTML 标签，点击一键纯化转换为纯净 Markdown（已是纯 Markdown 时自动保护格式不被修改）"
@@ -350,6 +514,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             id="markdown-textarea"
             value={markdown}
             onChange={(e) => onMarkdownChange(e.target.value)}
+            onPaste={handleEditorPaste}
+            onDrop={handleEditorDrop}
             placeholder="在此键入 Markdown 内容，支持头部 Front Matter..."
             className="flex-1 w-full p-4 bg-neutral-900 text-neutral-200 font-mono text-xs sm:text-sm leading-relaxed resize-none focus:outline-none focus:ring-0 selection:bg-emerald-900/60"
             spellCheck={false}
@@ -543,20 +709,90 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         </div>
       )}
 
-      {/* Tab 3: Scanned Images */}
+      {/* Tab 3: Scanned Images & Lossless Compressor */}
       {activeTab === 'images' && (
         <div className="flex-1 p-5 overflow-y-auto text-xs space-y-4">
+          {/* Feature 7: Local Lossless Image Compressor Engine */}
+          <div className="bg-gradient-to-br from-neutral-850 to-neutral-900 p-4 rounded-xl border border-neutral-750 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-neutral-100 text-xs flex items-center gap-2">
+                <Minimize2 className="w-4 h-4 text-sky-400" />
+                本地图片无损压缩引擎 (防超微信 2MB 素材上限)
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-sky-950 border border-sky-800 text-sky-300">
+                离线高速 Canvas + mozjpeg
+              </span>
+            </div>
+            <p className="text-neutral-400 text-[11px] leading-relaxed">
+              微信接口严格限制单张图片最大不可超过 2MB。拖入或选择大图，自动等比缩放并压缩至 1.2MB 以内，保留超清画质。
+            </p>
+
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-xs">
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>{isCompressing ? '正在极速压图中...' : '选择本地大图测试压缩'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCompressFile}
+                  disabled={isCompressing}
+                  className="hidden"
+                />
+              </label>
+
+              {compressionResult && (
+                <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-800/80">
+                  <span>{(compressionResult.originalSize / 1024).toFixed(0)}KB ➔ {(compressionResult.compressedSize / 1024).toFixed(0)}KB</span>
+                  <span className="font-bold text-emerald-300">(-{compressionResult.savedPercent}%)</span>
+                </div>
+              )}
+            </div>
+
+            {compressionResult && (
+              <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
+                <span className="text-[10px] text-neutral-500 font-mono">
+                  分辨率: {compressionResult.width}×{compressionResult.height} ({compressionResult.format})
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText(`\n![压缩配图](${compressionResult.dataUrl})\n`);
+                      setCleanNotice('已将压缩后的图片插入到 Markdown 编辑器光标处！');
+                      setTimeout(() => setCleanNotice(null), 3000);
+                    }}
+                    className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded text-[11px] transition"
+                  >
+                    插入到正文
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onMetadataChange({ cover: compressionResult.dataUrl });
+                      setCleanNotice('已将压缩后的图片设为当前封面！');
+                      setTimeout(() => setCleanNotice(null), 3000);
+                    }}
+                    className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded text-[11px] transition"
+                  >
+                    设为文章封面
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Scanned Images in article */}
           <div className="bg-neutral-850 p-4 rounded-xl border border-neutral-800">
-            <h3 className="font-semibold text-neutral-200 text-sm mb-1 flex items-center gap-2">
+            <h3 className="font-semibold text-neutral-200 text-xs mb-1 flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-emerald-400" />
-              文章配图解析与素材库状态
+              当前正文配图清单 ({scannedImages.length})
             </h3>
-            <p className="text-neutral-400 text-xs mb-4">
-              推送草稿时，工具将自动上传未入库的本地图片至微信永久素材库，并将其 URL 替换为微信 mmbiz.qpic.cn 地址。
+            <p className="text-neutral-400 text-[11px] mb-3">
+              推送草稿时，工具将自动检测并上传本地图片至微信永久素材库，并将其 URL 替换为微信安全图床地址。
             </p>
 
             {scannedImages.length === 0 ? (
-              <div className="py-8 text-center text-neutral-500">
+              <div className="py-6 text-center text-neutral-500">
                 当前文章未检测到配图引用。可通过顶部工具栏快速插入配图。
               </div>
             ) : (
@@ -598,54 +834,170 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         </div>
       )}
 
-      {/* Tab 4: Publish History */}
+      {/* Tab 4: Snapshots Timeline & Publish History */}
       {activeTab === 'history' && (
-        <div className="flex-1 p-5 overflow-y-auto text-xs space-y-3">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-neutral-200 text-sm flex items-center gap-2">
-              <History className="w-4 h-4 text-emerald-400" />
-              本地推送历史缓存记录 (.cache/published.json)
-            </h3>
-            {onRefreshHistory && (
+        <div className="flex-1 p-5 overflow-y-auto text-xs space-y-4">
+          {/* Subtabs: Snapshots vs Publish History */}
+          <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+            <div className="flex items-center space-x-2">
               <button
+                type="button"
+                onClick={() => setHistorySubTab('snapshots')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  historySubTab === 'snapshots'
+                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
+                }`}
+              >
+                📸 版本快照时间线 ({snapshots.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistorySubTab('publish')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  historySubTab === 'publish'
+                    ? 'bg-blue-950 text-blue-300 border border-blue-800'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
+                }`}
+              >
+                🚀 微信推送历史 ({history.length})
+              </button>
+            </div>
+
+            {historySubTab === 'snapshots' && (
+              <button
+                type="button"
+                onClick={handleCreateSnapshot}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-xs"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>保存当前版本快照</span>
+              </button>
+            )}
+
+            {historySubTab === 'publish' && onRefreshHistory && (
+              <button
+                type="button"
                 onClick={onRefreshHistory}
-                className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded text-xs transition flex items-center gap-1 border border-neutral-700 cursor-pointer"
-                title="重新获取发布历史"
+                className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded text-xs transition flex items-center gap-1 border border-neutral-700"
               >
                 刷新记录
               </button>
             )}
           </div>
 
-          {history.length === 0 ? (
-            <div className="py-12 text-center text-neutral-500 bg-neutral-850 rounded-xl border border-neutral-800">
-              暂无已推送的草稿记录。
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {history.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 bg-neutral-850 rounded-xl border border-neutral-800 hover:border-neutral-700 transition"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-medium text-neutral-200 text-xs leading-snug">
-                      {item.title}
-                    </h4>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-mono">
-                      {item.media_id ? item.media_id.slice(0, 14) + '...' : '草稿'}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-neutral-500 font-mono">
-                    <span>发布时间: {new Date(item.published_at).toLocaleString()}</span>
-                    <span>指纹: {item.hash.slice(0, 8)}...</span>
-                  </div>
+          {/* Subtab 1: Git-like Snapshots Timeline */}
+          {historySubTab === 'snapshots' && (
+            <div className="space-y-3">
+              <div className="p-3 bg-neutral-850/70 border border-neutral-800 rounded-xl text-neutral-400 text-[11px] leading-relaxed flex items-center justify-between">
+                <span>本地自动记录文档编辑快照与重大变更，误删或排版错乱时支持一键无损回滚。</span>
+                <span className="font-mono text-neutral-500">{snapshots.length} / 40 快照</span>
+              </div>
+
+              {snapshots.length === 0 ? (
+                <div className="py-12 text-center text-neutral-500 bg-neutral-850 rounded-xl border border-neutral-800">
+                  暂无历史版本快照。点击上方「保存当前版本快照」立即记录当前状态。
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-2.5">
+                  {snapshots.map((snap) => (
+                    <div
+                      key={snap.id}
+                      className="p-3.5 bg-neutral-850 rounded-xl border border-neutral-800 hover:border-neutral-700 transition flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-semibold text-neutral-200 text-xs truncate">
+                            {snap.label}
+                          </h4>
+                          <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono border ${
+                            snap.tag === 'manual'
+                              ? 'bg-amber-950 text-amber-300 border-amber-800'
+                              : snap.tag === 'publish'
+                              ? 'bg-purple-950 text-purple-300 border-purple-800'
+                              : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                          }`}>
+                            {snap.tag === 'manual' ? '手动' : snap.tag === 'publish' ? '推送前' : '自动'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-neutral-500 flex items-center gap-2 font-mono">
+                          <span>{new Date(snap.timestamp).toLocaleString()}</span>
+                          <span>•</span>
+                          <span>{snap.charCount} 字符</span>
+                          <span>•</span>
+                          <span>主题: {snap.theme}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleRollbackSnapshot(snap)}
+                          className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-xs font-medium transition flex items-center gap-1 border border-neutral-700 shadow-xs"
+                          title="一键还原编辑器至此历史版本"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>回滚还原</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteSnapshot(snap.id, e)}
+                          className="p-1.5 text-neutral-500 hover:text-rose-400 hover:bg-neutral-800 rounded-lg transition"
+                          title="删除此快照"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Subtab 2: Publish History */}
+          {historySubTab === 'publish' && (
+            <div className="space-y-2.5">
+              {history.length === 0 ? (
+                <div className="py-12 text-center text-neutral-500 bg-neutral-850 rounded-xl border border-neutral-800">
+                  暂无已推送的草稿记录。
+                </div>
+              ) : (
+                history.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 bg-neutral-850 rounded-xl border border-neutral-800 hover:border-neutral-700 transition"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-medium text-neutral-200 text-xs leading-snug">
+                        {item.title}
+                      </h4>
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-mono">
+                        {item.media_id ? item.media_id.slice(0, 14) + '...' : '草稿'}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-neutral-500 font-mono">
+                      <span>发布时间: {new Date(item.published_at).toLocaleString()}</span>
+                      <span>指纹: {item.hash.slice(0, 8)}...</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
       )}
+
+      {/* Interactive Components insertion modal */}
+      <InteractiveComponentsModal
+        isOpen={isComponentsModalOpen}
+        onClose={() => setIsComponentsModalOpen(false)}
+        onInsertComponent={(template, name) => {
+          insertText(template, '');
+          setCleanNotice(`✨ 已成功插入特色组件「${name}」！`);
+          setTimeout(() => setCleanNotice(null), 3000);
+        }}
+      />
     </div>
   );
 };

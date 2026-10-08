@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import katex from 'katex';
+import { renderMermaidToSvg } from './mermaidRenderer.ts';
 
 export interface RenderOptions {
   macStyle?: boolean;
@@ -12,6 +14,15 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
     linkify: true,
     typographer: true,
     highlight: (str: string, lang: string): string => {
+      // 1. Mermaid vector flowchart and sequence diagrams
+      if (lang && lang.toLowerCase() === 'mermaid') {
+        try {
+          return renderMermaidToSvg(str);
+        } catch {
+          // Fallback to code block if parsing error
+        }
+      }
+
       let highlightedCode = '';
       let detectedLang = lang || 'plaintext';
 
@@ -65,6 +76,63 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
   const defaultTableClose = md.renderer.rules.table_close || ((tokens: any, idx: any, opt: any, _env: any, self: any) => self.renderToken(tokens, idx, opt));
   md.renderer.rules.table_close = (tokens: any, idx: any, opt: any, env: any, self: any) => {
     return `${defaultTableClose(tokens, idx, opt, env, self)}</div>`;
+  };
+
+  // Wrap md.render to handle KaTeX Math Formula expressions before AST escaping
+  const originalRender = md.render.bind(md);
+  md.render = (src: string, env: any) => {
+    const mathTokens: Map<string, string> = new Map();
+    let tokenIndex = 0;
+
+    // 1. Extract and protect block math: $$ ... $$
+    let processed = src.replace(/\$\$([\s\S]+?)\$\$/g, (_match, expr) => {
+      const placeholder = `WECHAT_KATEX_BLOCK_${tokenIndex++}_PLACEHOLDER`;
+      try {
+        const rendered = katex.renderToString(expr.trim(), {
+          displayMode: true,
+          throwOnError: false,
+        });
+        mathTokens.set(
+          placeholder,
+          `<section class="wechat-math-block" style="text-align:center;margin:1.4em 0;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 4px;font-size:16px;">${rendered}</section>`
+        );
+      } catch (err: any) {
+        mathTokens.set(placeholder, `<pre class="katex-error">${expr}</pre>`);
+      }
+      return placeholder;
+    });
+
+    // 2. Extract and protect inline math: $ ... $ (ignoring currency like $100 or escaped \$)
+    processed = processed.replace(/(^|[^\\])\$([^\$\n]+?)\$/g, (_match, prefix, expr) => {
+      // Ignore if expr is purely numeric or empty
+      if (!expr.trim() || /^\d+(?:\.\d+)?$/.test(expr.trim())) {
+        return _match;
+      }
+      const placeholder = `WECHAT_KATEX_INLINE_${tokenIndex++}_PLACEHOLDER`;
+      try {
+        const rendered = katex.renderToString(expr.trim(), {
+          displayMode: false,
+          throwOnError: false,
+        });
+        mathTokens.set(
+          placeholder,
+          `<span class="wechat-math-inline" style="padding:0 3px;font-size:15px;display:inline-block;">${rendered}</span>`
+        );
+      } catch (err: any) {
+        mathTokens.set(placeholder, `$${expr}$`);
+      }
+      return `${prefix}${placeholder}`;
+    });
+
+    // 3. Render standard Markdown
+    let html = originalRender(processed, env);
+
+    // 4. Restore rendered KaTeX Math HTML
+    mathTokens.forEach((renderedHtml, placeholder) => {
+      html = html.replace(new RegExp(placeholder, 'g'), renderedHtml);
+    });
+
+    return html;
   };
 
   return md;

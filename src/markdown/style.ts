@@ -18,6 +18,43 @@ export interface ThemeConfig {
   codeBg: string;
   codeColor: string;
   headerStyle?: 'pie' | 'orangeheart' | 'border-left' | 'clean';
+  fontSize?: number; // 正文字号，默认 16px
+  lineHeight?: number; // 正文行高，默认 1.8
+  letterSpacing?: number; // 字间距，单位 px，默认 0.5 ~ 1.5
+  paragraphSpacing?: number; // 段落上下边距，单位 px，默认 16
+  customCss?: string; // 额外自定义 CSS 规则片段
+  isCustom?: boolean; // 标识是否为用户自定义主题
+}
+
+export const CUSTOM_THEMES_STORAGE_KEY = 'wechat_publisher_custom_themes';
+
+export function getCustomThemes(): Record<string, ThemeConfig> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomTheme(theme: ThemeConfig): void {
+  if (typeof window === 'undefined') return;
+  const custom = getCustomThemes();
+  custom[theme.name] = { ...theme, isCustom: true };
+  localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(custom));
+}
+
+export function deleteCustomTheme(themeName: string): void {
+  if (typeof window === 'undefined') return;
+  const custom = getCustomThemes();
+  delete custom[themeName];
+  localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(custom));
+}
+
+export function getAllThemes(extraCustom?: Record<string, ThemeConfig>): Record<string, ThemeConfig> {
+  const custom = extraCustom || (typeof window !== 'undefined' ? getCustomThemes() : {});
+  return { ...WECHAT_THEMES, ...custom };
 }
 
 export const WECHAT_THEMES: Record<string, ThemeConfig> = {
@@ -439,11 +476,17 @@ export function generateNativeCss(): string {
 /**
  * Generate exquisite theme typography CSS inspired by @wenyan-md/core
  */
-export function generateThemeCss(themeName = 'pie'): string {
-  if (themeName && !WECHAT_THEMES[themeName]) {
+export function generateThemeCss(themeName = 'pie', customConfig?: ThemeConfig): string {
+  const allThemes = getAllThemes();
+  if (themeName && !allThemes[themeName] && !customConfig) {
     logger.warn(`未知主题 "${themeName}"，已自动回退至 pie 主题`);
   }
-  const theme = WECHAT_THEMES[themeName] || WECHAT_THEMES.pie || WECHAT_THEMES.default;
+  const theme = customConfig || allThemes[themeName] || WECHAT_THEMES.pie || WECHAT_THEMES.default;
+
+  const fontSize = theme.fontSize || 16;
+  const lineHeight = theme.lineHeight || 1.8;
+  const letterSpacing = theme.letterSpacing !== undefined ? `${theme.letterSpacing}px` : '0.034em';
+  const pMargin = theme.paragraphSpacing !== undefined ? `${theme.paragraphSpacing}px` : '1.25em';
 
   // Custom headings based on theme archetype
   let h1Css = `
@@ -576,25 +619,25 @@ export function generateThemeCss(themeName = 'pie'): string {
       box-sizing: border-box;
       max-width: 100%;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-      font-size: 16px;
-      line-height: 1.8;
+      font-size: ${fontSize}px;
+      line-height: ${lineHeight};
       color: ${theme.textColor};
       background-color: ${theme.bgColor};
       word-break: break-word;
       overflow-wrap: break-word;
       overflow-x: hidden;
-      letter-spacing: 0.034em;
+      letter-spacing: ${letterSpacing};
       padding: 18px 10px;
     }
 
     p {
-      margin-top: 1.25em;
-      margin-bottom: 1.25em;
-      font-size: 16px;
-      line-height: 1.8;
+      margin-top: ${pMargin};
+      margin-bottom: ${pMargin};
+      font-size: ${fontSize}px;
+      line-height: ${lineHeight};
       color: ${theme.textColor};
       text-align: justify;
-      letter-spacing: 0.034em;
+      letter-spacing: ${letterSpacing};
     }
 
     h1 {
@@ -819,6 +862,200 @@ export function generateThemeCss(themeName = 'pie'): string {
     .hljs-variable, .hljs-tag, .hljs-name { color: #e36209; }
     .hljs-symbol, .hljs-bullet { color: #735c0f; }
     .hljs-built_in, .hljs-class .hljs-title { color: #6f42c1; }
+
+    /* WeChat Signature Interactive Components & Math Styling */
+    .wechat-faq-card {
+      margin: 1.4em 0;
+      border: 1.5px dashed ${theme.primaryColor};
+      background-color: ${theme.secondaryColor};
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .wechat-faq-card .faq-summary {
+      font-size: 14px;
+      font-weight: 700;
+      color: ${theme.primaryColor};
+      outline: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .wechat-faq-card .faq-content {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed ${theme.borderColor};
+      font-size: 13px;
+      color: ${theme.textColor};
+      line-height: 1.7;
+    }
+
+    .wechat-scroll-gallery {
+      margin: 1.8em 0;
+      background: ${theme.cardBg};
+      border: 1px solid ${theme.borderColor};
+      border-radius: 10px;
+      padding: 14px 12px;
+      overflow: hidden;
+    }
+
+    .wechat-scroll-gallery .gallery-track {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+    }
+
+    .wechat-scroll-gallery .gallery-item {
+      flex: 0 0 200px;
+      text-align: center;
+    }
+
+    .wechat-scroll-gallery .gallery-item img {
+      width: 100% !important;
+      height: 120px !important;
+      object-fit: cover;
+      border-radius: 6px;
+      margin: 0 0 6px 0 !important;
+      border: 1px solid ${theme.borderColor};
+    }
+
+    .wechat-scroll-gallery .gallery-caption {
+      font-size: 11px;
+      color: ${theme.mutedTextColor};
+      display: block;
+    }
+
+    .wechat-scroll-gallery .gallery-hint {
+      text-align: center;
+      font-size: 11px;
+      color: ${theme.primaryColor};
+      margin: 6px 0 0 0;
+      font-weight: 500;
+    }
+
+    .wechat-sticky-card {
+      margin: 1.6em 0;
+      background-color: ${theme.bgColor};
+      border-left: 4.5px solid ${theme.primaryColor};
+      border-radius: 4px 8px 8px 4px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+      padding: 14px 18px;
+      border-top: 1px solid ${theme.borderColor};
+      border-right: 1px solid ${theme.borderColor};
+      border-bottom: 1px solid ${theme.borderColor};
+    }
+
+    .wechat-sticky-card .sticky-badge {
+      display: inline-block;
+      background-color: ${theme.primaryColor};
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .wechat-sticky-card .sticky-text {
+      font-size: 14px;
+      color: ${theme.textColor};
+      margin: 0;
+      line-height: 1.75;
+    }
+
+    .wechat-quote-card {
+      margin: 1.8em 0;
+      background-color: ${theme.secondaryColor};
+      border: 1px solid ${theme.borderColor};
+      border-radius: 12px;
+      padding: 18px 20px;
+      text-align: center;
+    }
+
+    .wechat-quote-card .quote-mark {
+      font-size: 28px;
+      line-height: 1;
+      color: ${theme.primaryColor};
+      margin-bottom: 4px;
+    }
+
+    .wechat-quote-card .quote-text {
+      font-size: 14px;
+      font-style: italic;
+      color: ${theme.textColor};
+      line-height: 1.8;
+      margin: 0 0 8px 0;
+    }
+
+    .wechat-quote-card .quote-author {
+      font-size: 11px;
+      color: ${theme.mutedTextColor};
+      font-weight: 600;
+    }
+
+    .wechat-follow-card {
+      margin: 2.2em 0 1.2em 0;
+      background-color: ${theme.cardBg};
+      border: 1.5px solid ${theme.borderColor};
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+
+    .wechat-follow-card .follow-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: ${theme.primaryColor};
+      margin-bottom: 6px;
+    }
+
+    .wechat-follow-card .follow-desc {
+      font-size: 12px;
+      color: ${theme.mutedTextColor};
+      margin-bottom: 12px;
+    }
+
+    .wechat-follow-card .follow-badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .wechat-follow-card .follow-badge {
+      display: inline-block;
+      font-size: 11px;
+      background-color: ${theme.secondaryColor};
+      color: ${theme.primaryColor};
+      border: 1px solid ${theme.borderColor};
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+
+    /* Math Formulas */
+    .wechat-math-block {
+      text-align: center;
+      margin: 1.4em 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 8px 4px;
+      color: ${theme.textColor};
+    }
+
+    .wechat-math-inline {
+      padding: 0 3px;
+      display: inline-block;
+      color: ${theme.textColor};
+    }
+
+    ${theme.customCss ? `\n/* User Custom CSS Extension */\n${theme.customCss}\n` : ''}
   `;
 }
 
@@ -839,9 +1076,10 @@ function sanitizeHtmlStylesBeforeJuice(html: string): string {
 export function inlineWechatStyles(
   rawHtml: string,
   themeName = 'pie',
-  themeEnabled = true
+  themeEnabled = true,
+  customConfig?: ThemeConfig
 ): string {
-  const css = themeEnabled ? generateThemeCss(themeName) : generateNativeCss();
+  const css = themeEnabled ? generateThemeCss(themeName, customConfig) : generateNativeCss();
   const wrappedHtml = `
     <section class="wechat-article-container">
       ${rawHtml}

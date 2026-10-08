@@ -1,6 +1,19 @@
 import React from 'react';
-import { Smartphone, Monitor, Code, Sparkles, BookOpen, AlertTriangle, Newspaper, Images } from 'lucide-react';
+import {
+  Smartphone,
+  Monitor,
+  Code,
+  Sparkles,
+  BookOpen,
+  AlertTriangle,
+  Newspaper,
+  Images,
+  Palette,
+  Layers,
+  Share2,
+} from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
+import { ThemeConfig } from '../markdown/style.ts';
 
 interface ToolbarProps {
   currentTheme: string;
@@ -19,6 +32,10 @@ interface ToolbarProps {
   htmlLength?: number;
   digestLength: number;
   lastSaved?: string | null;
+  onOpenThemeDesigner?: () => void;
+  customThemes?: Record<string, ThemeConfig>;
+  onOpenMultiArticleComposer?: () => void;
+  multiArticlesCount?: number;
 }
 
 export const THEME_OPTIONS = [
@@ -50,6 +67,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   htmlLength,
   digestLength,
   lastSaved,
+  onOpenThemeDesigner,
+  customThemes = {},
+  onOpenMultiArticleComposer,
+  multiArticlesCount = 1,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -87,6 +108,26 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <span className="sm:hidden">图片贴图</span>
           </button>
         </div>
+
+        {/* Multi-article Visual Composer Trigger */}
+        {onOpenMultiArticleComposer && (
+          <button
+            type="button"
+            id="btn-open-multi-article-composer"
+            onClick={onOpenMultiArticleComposer}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-neutral-800/90 hover:bg-neutral-750 text-neutral-200 border border-neutral-700/80 transition text-xs font-medium"
+            title="可视化多图文拖拽编排（支持单条草稿 1~8 篇图文自由排序与头条设置）"
+          >
+            <Layers className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden sm:inline">多图文编排</span>
+            <span className="sm:hidden">多图文</span>
+            {multiArticlesCount > 1 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-900 border border-blue-700 text-blue-200 font-bold">
+                {multiArticlesCount}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Sample Articles Picker */}
         <div className="flex items-center space-x-1.5 bg-neutral-800/80 px-2.5 py-1 rounded-lg border border-neutral-700/60">
@@ -167,12 +208,37 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     className="bg-neutral-900 text-neutral-100 border border-neutral-700 rounded-md px-2 py-0.5 text-xs focus:outline-none focus:border-neutral-500 cursor-pointer"
                     title="选择微信文章排版主题 (参考 @wenyan-md/core 规范)"
                   >
-                    {THEME_OPTIONS.map((t) => (
-                      <option key={t.id} value={t.id} className="bg-neutral-800 text-neutral-200">
-                        {t.name} ({t.tag})
-                      </option>
-                    ))}
+                    <optgroup label="-- 官方精选主题 --">
+                      {THEME_OPTIONS.map((t) => (
+                        <option key={t.id} value={t.id} className="bg-neutral-800 text-neutral-200">
+                          {t.name} ({t.tag})
+                        </option>
+                      ))}
+                    </optgroup>
+                    {Object.values(customThemes).length > 0 && (
+                      <optgroup label="-- 我的专属自定义主题 --">
+                        {Object.values(customThemes).map((ct) => (
+                          <option key={ct.name} value={ct.name} className="bg-neutral-800 text-rose-300">
+                            ✨ {ct.label} (定制)
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
+
+                  {/* Open Theme Designer Button */}
+                  {onOpenThemeDesigner && (
+                    <button
+                      type="button"
+                      id="btn-open-theme-designer"
+                      onClick={onOpenThemeDesigner}
+                      className="flex items-center space-x-1 px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-rose-300 border border-neutral-700 text-xs transition shrink-0"
+                      title="打开自定义 CSS / 主题设计器（调整色彩体系、字号行高与字间距）"
+                    >
+                      <Palette className="w-3 h-3 text-rose-400" />
+                      <span className="hidden sm:inline">设计主题</span>
+                    </button>
+                  )}
 
                   {/* Quick Theme Badge Indicators */}
                   <div className="hidden xl:flex items-center space-x-1 pl-1">
