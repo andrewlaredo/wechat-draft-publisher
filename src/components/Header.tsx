@@ -16,6 +16,8 @@ import {
   FolderSync,
   ChevronDown,
   UserCheck,
+  DownloadCloud,
+  FileImage,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -30,6 +32,8 @@ interface HeaderProps {
   onOpenHelpGuide: () => void;
   onOpenMatrixPublish?: () => void;
   onOpenWatchMode?: () => void;
+  onOpenExtractArticle?: () => void;
+  onOpenLongImageExport?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -49,6 +53,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelpGuide,
   onOpenMatrixPublish,
   onOpenWatchMode,
+  onOpenExtractArticle,
+  onOpenLongImageExport,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
@@ -116,6 +122,20 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </button>
 
+        {/* Long Image Export Button */}
+        {onOpenLongImageExport && (
+          <button
+            onClick={onOpenLongImageExport}
+            id="btn-header-long-image-export"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition"
+            title="一键将排版文章导出为高清长图（手机仿真/长微博/卡片海报）"
+          >
+            <FileImage className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden xl:inline">长图导出</span>
+            <span className="hidden sm:inline xl:hidden">长图</span>
+          </button>
+        )}
+
         {/* AI Article Generator Button */}
         <button
           onClick={onOpenAiGenerator}
@@ -127,6 +147,20 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden md:inline">AI 智能撰文</span>
           <span className="hidden sm:inline md:hidden">AI 撰文</span>
         </button>
+
+        {/* WeChat Online Article Reverse Extractor */}
+        {onOpenExtractArticle && (
+          <button
+            onClick={onOpenExtractArticle}
+            id="btn-header-extract-article"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-800 hover:bg-neutral-750 text-blue-300 border border-blue-700/60 transition"
+            title="输入任意微信推文公开链接，一键抓取并逆向清洗为干净排版的 Markdown"
+          >
+            <DownloadCloud className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden md:inline">文章提取</span>
+            <span className="hidden sm:inline md:hidden">提取</span>
+          </button>
+        )}
 
         {/* Multi-platform Matrix Publisher Button */}
         {onOpenMatrixPublish && (

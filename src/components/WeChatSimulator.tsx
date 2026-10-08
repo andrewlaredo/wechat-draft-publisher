@@ -11,6 +11,7 @@ import {
   Check,
   Image as ImageIcon,
   Sparkles,
+  FileImage,
 } from 'lucide-react';
 import { ArticleMeta } from '../types/app.ts';
 import { renderMarkdownLocally } from '../markdown/clientRender.ts';
@@ -25,6 +26,7 @@ interface WeChatSimulatorProps {
   articleType?: 'news' | 'newspic';
   newspicCaption?: string;
   scannedImages?: string[];
+  onOpenLongImageExport?: () => void;
 }
 
 export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
@@ -37,6 +39,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
   articleType = 'news',
   newspicCaption = '',
   scannedImages = [],
+  onOpenLongImageExport,
 }) => {
   const [copiedHtml, setCopiedHtml] = useState(false);
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
@@ -346,6 +349,17 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
                 原生极简排版 (主题已关闭)
               </span>
             )}
+            {onOpenLongImageExport && (
+              <button
+                type="button"
+                onClick={onOpenLongImageExport}
+                className="px-2.5 py-0.5 rounded-full text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium border border-amber-200 transition flex items-center gap-1 ml-auto"
+                title="导出整篇排版高清长图"
+              >
+                <FileImage className="w-3 h-3 text-amber-600" />
+                <span>导出长图</span>
+              </button>
+            )}
           </div>
 
           {/* Article Inlined Body */}
@@ -388,12 +402,24 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
             <button className="p-1 hover:bg-neutral-100 rounded-full">
               <ChevronLeft className="w-6 h-6 text-neutral-800" />
             </button>
-            <span className="font-semibold text-sm truncate max-w-[200px]">
+            <span className="font-semibold text-sm truncate max-w-[180px]">
               {metadata.author || '微信公众号'}
             </span>
-            <button className="p-1 hover:bg-neutral-100 rounded-full">
-              <MoreHorizontal className="w-5 h-5 text-neutral-800" />
-            </button>
+            <div className="flex items-center space-x-1">
+              {onOpenLongImageExport && (
+                <button
+                  type="button"
+                  onClick={onOpenLongImageExport}
+                  title="生成并导出高清长图"
+                  className="p-1 hover:bg-neutral-100 rounded-full text-amber-600 transition"
+                >
+                  <FileImage className="w-4 h-4" />
+                </button>
+              )}
+              <button className="p-1 hover:bg-neutral-100 rounded-full">
+                <MoreHorizontal className="w-5 h-5 text-neutral-800" />
+              </button>
+            </div>
           </div>
 
           {/* ========================================================================= */}

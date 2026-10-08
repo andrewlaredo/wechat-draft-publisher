@@ -11,6 +11,7 @@ import {
   Palette,
   Layers,
   Share2,
+  FileImage,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -36,6 +37,7 @@ interface ToolbarProps {
   customThemes?: Record<string, ThemeConfig>;
   onOpenMultiArticleComposer?: () => void;
   multiArticlesCount?: number;
+  onOpenLongImageExport?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -71,6 +73,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   customThemes = {},
   onOpenMultiArticleComposer,
   multiArticlesCount = 1,
+  onOpenLongImageExport,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -398,6 +401,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           >
             <Code className="w-3.5 h-3.5" />
           </button>
+
+          {onOpenLongImageExport && (
+            <button
+              type="button"
+              onClick={onOpenLongImageExport}
+              id="btn-toolbar-long-image"
+              className="p-1.5 rounded-md transition text-amber-400 hover:text-amber-300 hover:bg-neutral-700/60 ml-0.5"
+              title="一键将排版文章导出为高清长图（手机仿真/长微博/海报）"
+            >
+              <FileImage className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
     </div>

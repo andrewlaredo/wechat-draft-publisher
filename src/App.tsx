@@ -16,6 +16,8 @@ import { ThemeDesignerModal } from './components/ThemeDesignerModal.tsx';
 import { MultiArticleComposerModal, MultiArticleDraftItem } from './components/MultiArticleComposerModal.tsx';
 import { MatrixPublishModal } from './components/MatrixPublishModal.tsx';
 import { WatchModeModal } from './components/WatchModeModal.tsx';
+import { ArticleExtractModal } from './components/ArticleExtractModal.tsx';
+import { LongImageExportModal } from './components/LongImageExportModal.tsx';
 import {
   WeChatAccountConfig,
   getStoredAccounts,
@@ -262,6 +264,8 @@ export default function App() {
   const [isMultiArticleOpen, setIsMultiArticleOpen] = useState<boolean>(false);
   const [isMatrixPublishOpen, setIsMatrixPublishOpen] = useState<boolean>(false);
   const [isWatchModeOpen, setIsWatchModeOpen] = useState<boolean>(false);
+  const [isExtractArticleOpen, setIsExtractArticleOpen] = useState<boolean>(false);
+  const [isLongImageExportOpen, setIsLongImageExportOpen] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
 
@@ -283,7 +287,7 @@ export default function App() {
     return getCustomThemes();
   });
 
-  // Multi-article series state (P0: 可视化多图文拖拽编排)
+  // Multi-article series state (可视化多图文拖拽编排)
   const [currentArticleId, setCurrentArticleId] = useState<string>('draft-primary');
   const [multiArticles, setMultiArticles] = useState<MultiArticleDraftItem[]>(() => [
     {
@@ -815,6 +819,8 @@ export default function App() {
         onOpenHelpGuide={() => setIsHelpGuideOpen(true)}
         onOpenMatrixPublish={() => setIsMatrixPublishOpen(true)}
         onOpenWatchMode={() => setIsWatchModeOpen(true)}
+        onOpenExtractArticle={() => setIsExtractArticleOpen(true)}
+        onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -853,6 +859,7 @@ export default function App() {
         customThemes={customThemes}
         onOpenMultiArticleComposer={() => setIsMultiArticleOpen(true)}
         multiArticlesCount={multiArticles.length}
+        onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
       />
 
       {/* Main Workspace: Split Pane */}
@@ -882,6 +889,7 @@ export default function App() {
             articleType={articleType}
             newspicCaption={newspicCaption}
             scannedImages={scannedImages}
+            onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
           />
         </div>
       </main>
@@ -1007,7 +1015,7 @@ export default function App() {
         }}
       />
 
-      {/* Custom CSS & Theme Designer Modal (P0-1) */}
+      {/* Custom CSS & Theme Designer Modal */}
       <ThemeDesignerModal
         isOpen={isThemeDesignerOpen}
         onClose={() => setIsThemeDesignerOpen(false)}
@@ -1015,7 +1023,7 @@ export default function App() {
         onApplyTheme={handleApplyCustomTheme}
       />
 
-      {/* Multi-article Visual Composer Modal (P0-2) */}
+      {/* Multi-article Visual Composer Modal */}
       <MultiArticleComposerModal
         isOpen={isMultiArticleOpen}
         onClose={() => setIsMultiArticleOpen(false)}
@@ -1027,7 +1035,7 @@ export default function App() {
         defaultTheme={activeTheme}
       />
 
-      {/* Multi-platform Matrix Publisher Modal (P0-3) */}
+      {/* Multi-platform Matrix Publisher Modal */}
       <MatrixPublishModal
         isOpen={isMatrixPublishOpen}
         onClose={() => setIsMatrixPublishOpen(false)}
@@ -1047,7 +1055,7 @@ export default function App() {
         onCopyWeChatHtml={handleCopyWeChatHtml}
       />
 
-      {/* Directory Watch Mode Modal (P1-6) */}
+      {/* Directory Watch Mode Modal */}
       <WatchModeModal
         isOpen={isWatchModeOpen}
         onClose={() => setIsWatchModeOpen(false)}
@@ -1055,6 +1063,46 @@ export default function App() {
           setMarkdown(md);
           showToast('已从本地监听文件同步最新内容！');
         }}
+      />
+
+      {/* WeChat Online Article Reverse Extractor Modal */}
+      <ArticleExtractModal
+        isOpen={isExtractArticleOpen}
+        onClose={() => setIsExtractArticleOpen(false)}
+        onApplyMarkdown={(extractedMd, meta) => {
+          setMarkdown(extractedMd);
+          setMetadata((prev) => ({
+            ...prev,
+            title: meta.title || prev.title,
+            author: meta.author || prev.author,
+            digest: meta.digest || prev.digest,
+            cover: meta.cover || prev.cover,
+          }));
+          showToast(`📥 成功提取并载入文章《${meta.title}》！`);
+        }}
+        onAddToMultiArticle={(art) => {
+          const newItem: MultiArticleDraftItem = {
+            id: `art_${Date.now()}`,
+            title: art.title,
+            author: art.author,
+            digest: art.digest,
+            markdown: art.markdown,
+            cover: art.cover || '',
+            theme: activeTheme,
+          };
+          setMultiArticles((prev) => [...prev, newItem]);
+          showToast(`📑 已将《${art.title}》加入多图文编排！`);
+        }}
+      />
+
+      {/* Long Image Export Modal */}
+      <LongImageExportModal
+        isOpen={isLongImageExportOpen}
+        onClose={() => setIsLongImageExportOpen(false)}
+        inlinedHtml={inlinedHtml}
+        metadata={metadata}
+        activeTheme={activeTheme}
+        currentThemeObj={currentThemeObj}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}
