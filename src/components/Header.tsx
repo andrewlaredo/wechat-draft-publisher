@@ -99,8 +99,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+      {/* Action Buttons (wrap on narrow screens so nothing gets clipped / unreachable) */}
+      <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2 min-w-0 flex-1">
         {/* Copy Formatted HTML for WeChat direct paste */}
         <button
           onClick={onCopyHtml}
