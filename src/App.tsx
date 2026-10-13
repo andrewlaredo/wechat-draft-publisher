@@ -266,6 +266,7 @@ export default function App() {
   const [isWatchModeOpen, setIsWatchModeOpen] = useState<boolean>(false);
   const [isExtractArticleOpen, setIsExtractArticleOpen] = useState<boolean>(false);
   const [isLongImageExportOpen, setIsLongImageExportOpen] = useState<boolean>(false);
+  const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
 
@@ -862,10 +863,12 @@ export default function App() {
         onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
       />
 
-      {/* Main Workspace: Split Pane */}
-      <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+      {/* Main Workspace: Split Pane or Zen Focus Mode */}
+      <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
         {/* Left: Markdown Editor & Metadata tabs */}
-        <div className="w-full md:w-1/2 lg:w-5/12 h-full flex flex-col min-h-0">
+        <div className={`h-full flex flex-col min-h-0 transition-all duration-200 ${
+          isZenMode ? 'w-full' : 'w-full md:w-1/2 lg:w-5/12'
+        }`}>
           <MarkdownEditor
             markdown={markdown}
             onMarkdownChange={handleMarkdownChange}
@@ -874,24 +877,28 @@ export default function App() {
             history={history}
             scannedImages={scannedImages}
             onRefreshHistory={fetchHistory}
+            isZenMode={isZenMode}
+            onToggleZenMode={() => setIsZenMode((prev) => !prev)}
           />
         </div>
 
         {/* Right: Mobile Simulator & Preview */}
-        <div className="w-full md:w-1/2 lg:w-7/12 h-full min-h-0 bg-neutral-950 overflow-hidden">
-          <WeChatSimulator
-            metadata={metadata}
-            inlinedHtml={inlinedHtml}
-            viewMode={viewMode}
-            themeColor={currentThemeObj.color}
-            themeEnabled={themeEnabled}
-            themeName={currentThemeObj.name}
-            articleType={articleType}
-            newspicCaption={newspicCaption}
-            scannedImages={scannedImages}
-            onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
-          />
-        </div>
+        {!isZenMode && (
+          <div className="w-full md:w-1/2 lg:w-7/12 h-full min-h-0 bg-neutral-950 overflow-hidden">
+            <WeChatSimulator
+              metadata={metadata}
+              inlinedHtml={inlinedHtml}
+              viewMode={viewMode}
+              themeColor={currentThemeObj.color}
+              themeEnabled={themeEnabled}
+              themeName={currentThemeObj.name}
+              articleType={articleType}
+              newspicCaption={newspicCaption}
+              scannedImages={scannedImages}
+              onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
+            />
+          </div>
+        )}
       </main>
 
       {/* Publish Flow Modal */}

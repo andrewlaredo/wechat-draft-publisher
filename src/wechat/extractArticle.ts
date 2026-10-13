@@ -134,6 +134,45 @@ function isAllowedWechatHost(hostname: string): boolean {
   return host === 'mp.weixin.qq.com' || host.endsWith('.weixin.qq.com');
 }
 
+/**
+ * Normalizes and upgrades WeChat CDN image URLs to their highest possible resolution.
+ * - Upgrades /640, /300, /1080 thumbnails to /0 (original uncompressed raw master image)
+ * - Strips tp=webp and tracking params (wxfrom, wx_lazy, wx_co)
+ * - Ensures valid wx_fmt=png or wx_fmt=jpeg for compatibility
+ */
+export function cleanAndUpgradeWechatImageUrl(rawUrl: string): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed.includes('mmbiz.qpic.cn') && !trimmed.includes('qpic.cn')) {
+    return trimmed;
+  }
+  try {
+    const u = new URL(trimmed);
+    // Upgrade thumbnail sizes (/640, /300, etc.) to full-res /0
+    u.pathname = u.pathname.replace(/\/(?:640|300|1080)$/, '/0');
+
+    // Strip WeChat mobile lazy/tracking query parameters
+    const params = u.searchParams;
+    params.delete('tp'); // remove WebP force
+    params.delete('wxfrom');
+    params.delete('wx_lazy');
+    params.delete('wx_co');
+    params.delete('from');
+
+    // Ensure reliable image format
+    if (!params.has('wx_fmt') || params.get('wx_fmt') === 'webp') {
+      if (u.pathname.includes('_png')) {
+        params.set('wx_fmt', 'png');
+      } else {
+        params.set('wx_fmt', 'jpeg');
+      }
+    }
+    return u.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 function cleanText(str: string): string {
   return str
     .replace(/<[^>]*>/g, '')
@@ -222,43 +261,66 @@ export async function extractWechatArticle(rawUrl: string): Promise<ExtractedArt
     throw new Error('微信返回了访问验证/内容已删除页面，无法解析。请改用内置测试示例，或在微信中打开后复制正文内容。');
   }
 
-  // 4. Metadata
+  // 4. Parse content using shared HTML extractor
+  return parseWechatHtmlToArticle(html, trimmedUrl);
+}
+
+/**
+ * Parses WeChat article HTML content directly into an ExtractedArticle object.
+ * Can be run in both server (Node/Vercel) and client (browser) environments.
+ */
+export function parseWechatHtmlToArticle(
+  html: string,
+  sourceUrl = '',
+  defaultMeta?: Partial<ExtractedArticle>
+): ExtractedArticle {
+  const cleanHtml = (html || '').trim();
+  if (!cleanHtml) {
+    throw new Error('提供的文章 HTML 内容为空');
+  }
+
+  // 1. Metadata
   const titleMatch =
-    html.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
-    html.match(/var\s+msg_title\s*=\s*['"](.*?)['"]/) ||
-    html.match(/<h1[^>]*id=["']activity-name["'][^>]*>([\s\S]*?)<\/h1>/i);
-  const title = titleMatch ? cleanText(titleMatch[1]) : '微信提取文章';
+    cleanHtml.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
+    cleanHtml.match(/var\s+msg_title\s*=\s*['"](.*?)['"]/) ||
+    cleanHtml.match(/<h1[^>]*id=["']activity-name["'][^>]*>([\s\S]*?)<\/h1>/i) ||
+    cleanHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const title = defaultMeta?.title || (titleMatch ? cleanText(titleMatch[1]) : '微信提取文章');
 
   const authorMatch =
-    html.match(/<meta\s+property=["']og:article:author["']\s+content=["'](.*?)["']/i) ||
-    html.match(/var\s+author\s*=\s*['"](.*?)['"]/) ||
-    html.match(/var\s+nickname\s*=\s*['"](.*?)['"]/) ||
-    html.match(/<span[^>]*class=["'][^"']*rich_media_meta_text[^"']*["'][^>]*>([\s\S]*?)<\/span>/i);
-  const author = authorMatch ? cleanText(authorMatch[1]) : '微信公众号作者';
+    cleanHtml.match(/<meta\s+property=["']og:article:author["']\s+content=["'](.*?)["']/i) ||
+    cleanHtml.match(/var\s+author\s*=\s*['"](.*?)['"]/) ||
+    cleanHtml.match(/var\s+nickname\s*=\s*['"](.*?)['"]/) ||
+    cleanHtml.match(/<span[^>]*class=["'][^"']*rich_media_meta_text[^"']*["'][^>]*>([\s\S]*?)<\/span>/i);
+  const author = defaultMeta?.author || (authorMatch ? cleanText(authorMatch[1]) : '微信公众号作者');
 
   const accountMatch =
-    html.match(/var\s+nickname\s*=\s*['"](.*?)['"]/) ||
-    html.match(/<strong[^>]*class=["'][^"']*profile_nickname[^"']*["'][^>]*>([\s\S]*?)<\/strong>/i);
-  const accountName = accountMatch ? cleanText(accountMatch[1]) : author;
+    cleanHtml.match(/var\s+nickname\s*=\s*['"](.*?)['"]/) ||
+    cleanHtml.match(/<strong[^>]*class=["'][^"']*profile_nickname[^"']*["'][^>]*>([\s\S]*?)<\/strong>/i);
+  const accountName = defaultMeta?.accountName || (accountMatch ? cleanText(accountMatch[1]) : author);
 
   const digestMatch =
-    html.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i) ||
-    html.match(/var\s+msg_desc\s*=\s*['"](.*?)['"]/);
-  const digest = digestMatch ? cleanText(digestMatch[1]) : '';
+    cleanHtml.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i) ||
+    cleanHtml.match(/var\s+msg_desc\s*=\s*['"](.*?)['"]/);
+  const digest = defaultMeta?.digest || (digestMatch ? cleanText(digestMatch[1]) : '');
 
   const coverMatch =
-    html.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i) ||
-    html.match(/var\s+msg_cdn_url\s*=\s*['"](.*?)['"]/);
-  const cover = coverMatch ? coverMatch[1].trim() : '';
+    cleanHtml.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i) ||
+    cleanHtml.match(/var\s+msg_cdn_url\s*=\s*['"](.*?)['"]/);
+  let cover = defaultMeta?.cover || (coverMatch ? cleanAndUpgradeWechatImageUrl(coverMatch[1]) : '');
 
-  const ctMatch = html.match(/var\s+ct\s*=\s*['"]?(\d+)['"]?/);
-  const publishTime = ctMatch
-    ? new Date(parseInt(ctMatch[1], 10) * 1000).toLocaleDateString('zh-CN')
-    : new Date().toLocaleDateString('zh-CN');
+  const ctMatch = cleanHtml.match(/var\s+ct\s*=\s*['"]?(\d+)['"]?/);
+  const publishTime =
+    defaultMeta?.publishTime ||
+    (ctMatch
+      ? new Date(parseInt(ctMatch[1], 10) * 1000).toLocaleDateString('zh-CN')
+      : new Date().toLocaleDateString('zh-CN'));
 
-  // 5. Body
-  const contentMatch = html.match(/<div[^>]*id=["']js_content["'][^>]*>([\s\S]*?)<\/div>/i);
-  let contentHtml = contentMatch ? contentMatch[1] : html;
+  // 2. Body
+  const contentMatch =
+    cleanHtml.match(/<div[^>]*id=["']js_content["'][^>]*>([\s\S]*?)<\/div>/i) ||
+    cleanHtml.match(/<div[^>]*class=["'][^"']*rich_media_content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  let contentHtml = contentMatch ? contentMatch[1] : cleanHtml;
 
   const images: ExtractedImage[] = [];
   if (cover) {
@@ -267,12 +329,18 @@ export async function extractWechatArticle(rawUrl: string): Promise<ExtractedArt
 
   contentHtml = contentHtml.replace(/<img\b([^>]*?)>/gi, (_match, attrs) => {
     const srcMatch =
-      attrs.match(/\bdata-src=["']([^"']+)["']/i) || attrs.match(/\bsrc=["']([^"']+)["']/i);
+      attrs.match(/\bdata-src=["']([^"']+)["']/i) ||
+      attrs.match(/\bsrc=["']([^"']+)["']/i) ||
+      attrs.match(/\bdata-original=["']([^"']+)["']/i);
     const altMatch = attrs.match(/\balt=["']([^"']+)["']/i);
-    const imgUrl = srcMatch ? srcMatch[1].trim() : '';
+    const rawImgUrl = srcMatch ? srcMatch[1].trim() : '';
     const imgAlt = altMatch ? altMatch[1].trim() : '图片';
 
-    if (imgUrl && !imgUrl.startsWith('data:image/svg')) {
+    if (rawImgUrl && !rawImgUrl.startsWith('data:image/svg')) {
+      const imgUrl = cleanAndUpgradeWechatImageUrl(rawImgUrl);
+      if (!cover) {
+        cover = imgUrl;
+      }
       if (!images.some((x) => x.url === imgUrl)) {
         images.push({ url: imgUrl, alt: imgAlt });
       }
@@ -282,20 +350,34 @@ export async function extractWechatArticle(rawUrl: string): Promise<ExtractedArt
   });
 
   const bodyMd = wechatHtmlToMarkdown(contentHtml);
-  const meta = { title, author, accountName, digest, cover, images, publishTime, sourceUrl: trimmedUrl };
-
-  return {
-    ...meta,
-    markdown: `${buildFrontMatter({ ...meta, bodyMd })}\n${bodyMd}`,
+  const meta: ExtractedArticle = {
+    title,
+    author,
+    accountName,
+    digest,
+    cover,
+    images,
+    publishTime,
+    sourceUrl: sourceUrl || '',
+    markdown: '',
   };
+
+  meta.markdown = `${buildFrontMatter({ ...meta, bodyMd })}\n${bodyMd}`;
+  return meta;
 }
 
 /** Express handler for POST /api/wechat/extract-article */
 export async function handleExtractArticle(req: Request, res: Response): Promise<void> {
   try {
-    const { url } = req.body || {};
+    const { url, html, title, author } = req.body || {};
+    if (html && typeof html === 'string') {
+      const article = parseWechatHtmlToArticle(html, url || '', { title, author });
+      res.json({ success: true, article });
+      return;
+    }
+
     if (!url || typeof url !== 'string') {
-      res.status(400).json({ success: false, error: '请提供有效的微信推文 URL' });
+      res.status(400).json({ success: false, error: '请提供有效的微信推文 URL 或 HTML 源代码' });
       return;
     }
 

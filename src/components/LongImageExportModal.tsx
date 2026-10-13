@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   X,
-  FileImage,
   Download,
   Copy,
   Check,
@@ -13,17 +12,19 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Heart,
-  Eye,
   CheckCircle2,
   RefreshCw,
   Layers,
   Image as ImageIcon,
   Shrink,
+  Newspaper,
+  BookOpen,
+  Scissors,
+  Palette,
+  ExternalLink,
 } from 'lucide-react';
-import { toPng, toJpeg, toBlob } from 'html-to-image';
+import { toPng, toJpeg } from 'html-to-image';
 import { ArticleMeta } from '../types/app.ts';
-import { ThemeConfig } from '../markdown/style.ts';
 
 interface LongImageExportModalProps {
   isOpen: boolean;
@@ -34,7 +35,16 @@ interface LongImageExportModalProps {
   currentThemeObj?: { id: string; name: string; primaryColor?: string; color?: string };
 }
 
-type PosterStyleType = 'mobile' | 'weibo' | 'card';
+export type PosterStyleType = 'mobile' | 'weibo' | 'card' | 'editorial' | 'knowledge';
+export type PaperToneType = 'white' | 'warm-paper' | 'slate' | 'cream';
+export type SliceModeType = 'none' | 'red_3_4' | 'moments_1_1' | 'custom_parts';
+
+export interface SlicedItem {
+  index: number;
+  dataUrl: string;
+  width: number;
+  height: number;
+}
 
 export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
   isOpen,
@@ -48,19 +58,27 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
   const [posterWidth, setPosterWidth] = useState<number>(414); // 414px ideal mobile reading width
   const [pixelRatio, setPixelRatio] = useState<number>(2); // 2x Retina
   const [imageFormat, setImageFormat] = useState<'png' | 'jpeg'>('png');
+  const [paperTone, setPaperTone] = useState<PaperToneType>('white');
   const [showCover, setShowCover] = useState<boolean>(true);
   const [showMetaHeader, setShowMetaHeader] = useState<boolean>(true);
   const [showFooterInteraction, setShowFooterInteraction] = useState<boolean>(true);
   const [showWatermark, setShowWatermark] = useState<boolean>(true);
+  const [customWatermarkText, setCustomWatermarkText] = useState<string>('');
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedDataUrl, setGeneratedDataUrl] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [previewZoom, setPreviewZoom] = useState<number>(0.85);
-  const [previewMode, setPreviewMode] = useState<'canvas' | 'image'>('canvas');
+  const [previewMode, setPreviewMode] = useState<'canvas' | 'image' | 'slices'>('canvas');
   const [contentHeight, setContentHeight] = useState<number>(0);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Slicing state (九宫格/分页切片)
+  const [sliceMode, setSliceMode] = useState<SliceModeType>('none');
+  const [slicePartsCount, setSlicePartsCount] = useState<number>(6);
+  const [isSlicing, setIsSlicing] = useState<boolean>(false);
+  const [slicedImages, setSlicedImages] = useState<SlicedItem[]>([]);
 
   const captureContainerRef = useRef<HTMLDivElement>(null);
   const previewViewportRef = useRef<HTMLDivElement>(null);
@@ -84,7 +102,17 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
     });
     ro.observe(captureContainerRef.current);
     return () => ro.disconnect();
-  }, [posterStyle, posterWidth, showCover, showMetaHeader, showFooterInteraction, showWatermark, inlinedHtml]);
+  }, [
+    posterStyle,
+    posterWidth,
+    paperTone,
+    showCover,
+    showMetaHeader,
+    showFooterInteraction,
+    showWatermark,
+    customWatermarkText,
+    inlinedHtml,
+  ]);
 
   // Fit Whole Screen: see the entire long poster at once without any clipping
   const handleFitToScreen = useCallback(() => {
@@ -115,8 +143,8 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
     setToastMessage(null);
 
     try {
-      // Ensure images are fully rendered
-      await new Promise((r) => setTimeout(r, 250));
+      // Ensure fonts & DOM reflow are settled
+      await new Promise((r) => setTimeout(r, 260));
 
       const el = captureContainerRef.current;
       const width = el.offsetWidth || posterWidth;
@@ -125,7 +153,7 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
       const options = {
         pixelRatio,
         cacheBust: true,
-        quality: imageFormat === 'jpeg' ? 0.92 : undefined,
+        quality: imageFormat === 'jpeg' ? 0.94 : undefined,
         width,
         height,
       };
@@ -134,103 +162,187 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
       if (imageFormat === 'jpeg') {
         dataUrl = await toJpeg(captureContainerRef.current, {
           ...options,
-          backgroundColor: '#ffffff',
+          backgroundColor: paperTone === 'warm-paper' ? '#faf8f5' : paperTone === 'cream' ? '#fcfbf7' : '#ffffff',
         });
       } else {
         dataUrl = await toPng(captureContainerRef.current, options);
       }
 
       setGeneratedDataUrl(dataUrl);
-      const img = new Image();
-      img.onload = () => {
-        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.src = dataUrl;
-
-      showToast('🎉 高清长图已成功生成！可点击右侧下载或复制');
+      setImageDimensions({ width: width * pixelRatio, height: height * pixelRatio });
+      setPreviewMode('image');
+      showToast('🎉 高清长图已成功光栅化渲染完毕！');
     } catch (err: any) {
-      console.error('Long image generation error:', err);
-      showToast(`生成长图失败: ${err.message || '未知错误'}`);
+      alert(`渲染长图失败: ${err.message || '未知错误'}`);
     } finally {
       setIsGenerating(false);
     }
-  }, [pixelRatio, imageFormat, posterWidth]);
+  }, [pixelRatio, imageFormat, posterWidth, paperTone]);
 
-  // Auto-generate on open and fit width
+  // Generate image on open or when parameters change
   useEffect(() => {
     if (isOpen) {
-      setGeneratedDataUrl(null);
       const timer = setTimeout(() => {
         handleFitWidth();
         handleGenerateImage();
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, posterStyle, posterWidth, pixelRatio, imageFormat, showCover, showMetaHeader, showFooterInteraction, showWatermark, handleGenerateImage, handleFitWidth]);
+  }, [isOpen]);
 
-  if (!isOpen) return null;
+  // Perform Image Slicing using Canvas
+  const handlePerformSlicing = useCallback(async (sourceUrl = generatedDataUrl) => {
+    if (!sourceUrl) return;
+    setIsSlicing(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('图片加载失败'));
+        img.src = sourceUrl;
+      });
 
-  // Handle Download
+      const totalWidth = img.width;
+      const totalHeight = img.height;
+
+      let sliceHeight = 0;
+      let totalSlices = 1;
+
+      if (sliceMode === 'red_3_4') {
+        // Xiaohongshu 3:4 ratio: height = width * 4 / 3
+        sliceHeight = Math.round(totalWidth * (4 / 3));
+        totalSlices = Math.max(1, Math.ceil(totalHeight / sliceHeight));
+      } else if (sliceMode === 'moments_1_1') {
+        // Moments 1:1 ratio: height = width
+        sliceHeight = totalWidth;
+        totalSlices = Math.max(1, Math.ceil(totalHeight / sliceHeight));
+      } else if (sliceMode === 'custom_parts') {
+        totalSlices = Math.max(2, Math.min(9, slicePartsCount));
+        sliceHeight = Math.ceil(totalHeight / totalSlices);
+      } else {
+        setSlicedImages([]);
+        setIsSlicing(false);
+        return;
+      }
+
+      const results: SlicedItem[] = [];
+
+      for (let i = 0; i < totalSlices; i++) {
+        const sy = i * sliceHeight;
+        const sh = Math.min(sliceHeight, totalHeight - sy);
+        if (sh <= 0) break;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = totalWidth;
+        canvas.height = sh;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+
+        ctx.drawImage(img, 0, sy, totalWidth, sh, 0, 0, totalWidth, sh);
+        const sliceDataUrl = canvas.toDataURL('image/png');
+        results.push({
+          index: i + 1,
+          dataUrl: sliceDataUrl,
+          width: totalWidth,
+          height: sh,
+        });
+      }
+
+      setSlicedImages(results);
+      setPreviewMode('slices');
+      showToast(`✂️ 成功完成分页切片，共生成 ${results.length} 张连续切片！`);
+    } catch (err: any) {
+      alert(`切片处理失败: ${err.message || '未知错误'}`);
+    } finally {
+      setIsSlicing(false);
+    }
+  }, [generatedDataUrl, sliceMode, slicePartsCount]);
+
+  // Download Sliced Images sequentially
+  const handleDownloadAllSlices = async () => {
+    if (slicedImages.length === 0) return;
+    const baseName = (metadata.title || 'wechat_long_poster').replace(/[\\/:*?"<>|]/g, '_');
+    for (let i = 0; i < slicedImages.length; i++) {
+      const item = slicedImages[i];
+      const link = document.createElement('a');
+      link.download = `${baseName}_slice_${item.index}_of_${slicedImages.length}.png`;
+      link.href = item.dataUrl;
+      link.click();
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    showToast(`✅ 已触发全部 ${slicedImages.length} 张分页切片极速下载！`);
+  };
+
+  // Download single long image
   const handleDownload = () => {
     if (!generatedDataUrl) return;
-    const a = document.createElement('a');
-    a.href = generatedDataUrl;
-    const ext = imageFormat === 'jpeg' ? 'jpg' : 'png';
-    const safeTitle = (metadata.title || 'wechat_article').replace(/[/\\?%*:|"<>]/g, '_');
-    a.download = `${safeTitle}_长图_${posterStyle}.${ext}`;
-    a.click();
-    showToast('💾 已启动长图下载！');
+    const link = document.createElement('a');
+    const safeTitle = (metadata.title || 'wechat_long_poster').replace(/[\\/:*?"<>|]/g, '_');
+    link.download = `${safeTitle}.${imageFormat}`;
+    link.href = generatedDataUrl;
+    link.click();
+    showToast(`📥 长图已开始下载 (${imageFormat.toUpperCase()})！`);
   };
 
-  // Handle Copy to Clipboard
-  const handleCopyImage = async () => {
-    if (!captureContainerRef.current) return;
+  // Copy Image to System Clipboard
+  const handleCopy = async () => {
+    if (!generatedDataUrl) return;
     try {
+      const response = await fetch(generatedDataUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob,
+        }),
+      ]);
       setIsCopied(true);
-      const blob = await toBlob(captureContainerRef.current, {
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-      });
-      if (!blob) throw new Error('生成图片数据为空');
-
-      if (navigator.clipboard && (window as any).ClipboardItem) {
-        await navigator.clipboard.write([
-          new (window as any).ClipboardItem({
-            'image/png': blob,
-          }),
-        ]);
-        showToast('📋 已复制长图到剪贴板！可直接在微信聊天框或朋友圈中粘贴');
-      } else {
-        showToast('当前浏览器不支持直接写入图片剪贴板，请点击「下载长图」保存！');
-      }
+      showToast('📋 已成功复制超清长图到系统剪贴板！可直接在微信/QQ聊天窗口按 Ctrl+V 粘贴发送');
+      setTimeout(() => setIsCopied(false), 2500);
     } catch (err: any) {
-      showToast(`复制长图失败: ${err.message}`);
-    } finally {
-      setTimeout(() => setIsCopied(false), 2000);
+      const link = document.createElement('a');
+      link.href = generatedDataUrl;
+      link.download = `${(metadata.title || 'poster').replace(/[\\/:*?"<>|]/g, '_')}.${imageFormat}`;
+      link.click();
+      showToast('浏览器安全限制禁止直接写入剪贴板，已为您自动触发本地下载保存！');
     }
   };
+
+  if (!isOpen) return null;
 
   const scaledWidth = Math.ceil(posterWidth * previewZoom);
   const scaledHeight = contentHeight ? Math.ceil(contentHeight * previewZoom) : 0;
 
+  // Background tone mapping
+  const toneBgColor =
+    paperTone === 'warm-paper'
+      ? '#faf8f5'
+      : paperTone === 'cream'
+      ? '#fcfbf7'
+      : paperTone === 'slate'
+      ? '#f1f5f9'
+      : '#ffffff';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-neutral-900 border border-neutral-700/80 rounded-2xl w-full max-w-6xl shadow-2xl flex flex-col h-[94vh] overflow-hidden">
-        {/* Top Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-800 bg-neutral-850/80 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-neutral-900 border border-neutral-750 rounded-2xl w-full max-w-6xl shadow-2xl flex flex-col h-[94vh] max-h-[96vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-800 bg-neutral-850/80 shrink-0">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
-              <FileImage className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-white shadow-md">
+              <ImageIcon className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
-                <span>高清长图渲染导出 (Poster / 长微博)</span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-medium">
-                  高清海报渲染
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-neutral-100">
+                  高清长图渲染与海报切片导出
+                </h3>
+                <span className="text-[11px] text-amber-400 font-mono">
+                  · Retina 视网膜光栅化引擎
                 </span>
-              </h3>
+              </div>
               <p className="text-xs text-neutral-400">
-                将排版文章无损光栅化为超清长图，便捷分发至朋友圈、微信群或微博
+                一键将整篇文章排版渲染为超清长图，支持多款设计版式、分页切片与剪贴板极速复制
               </p>
             </div>
           </div>
@@ -258,20 +370,20 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
         {/* Main Split Layout: Left Controls, Right Live Preview */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Left: Customization Panel */}
-          <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-neutral-800 p-4 space-y-4 overflow-y-auto bg-neutral-900/60 shrink-0 text-xs">
+          <div className="w-full lg:w-84 border-b lg:border-b-0 lg:border-r border-neutral-800 p-4 space-y-4 overflow-y-auto bg-neutral-900/80 shrink-0 text-xs">
             {/* Style Preset Selector */}
             <div className="space-y-2">
               <label className="font-semibold text-neutral-200 flex items-center gap-1.5">
                 <Smartphone className="w-3.5 h-3.5 text-amber-400" />
-                <span>长图排版版式</span>
+                <span>长图排版版式体系</span>
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
                   onClick={() => setPosterStyle('mobile')}
                   className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 ${
                     posterStyle === 'mobile'
-                      ? 'bg-amber-950/60 border-amber-500 text-amber-300 font-semibold'
+                      ? 'bg-amber-950/70 border-amber-500 text-amber-300 font-semibold shadow-xs'
                       : 'bg-neutral-850 border-neutral-750 text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
@@ -283,7 +395,7 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                   onClick={() => setPosterStyle('weibo')}
                   className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 ${
                     posterStyle === 'weibo'
-                      ? 'bg-amber-950/60 border-amber-500 text-amber-300 font-semibold'
+                      ? 'bg-amber-950/70 border-amber-500 text-amber-300 font-semibold shadow-xs'
                       : 'bg-neutral-850 border-neutral-750 text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
@@ -295,17 +407,176 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                   onClick={() => setPosterStyle('card')}
                   className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 ${
                     posterStyle === 'card'
-                      ? 'bg-amber-950/60 border-amber-500 text-amber-300 font-semibold'
+                      ? 'bg-amber-950/70 border-amber-500 text-amber-300 font-semibold shadow-xs'
                       : 'bg-neutral-850 border-neutral-750 text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
                   <Layers className="w-4 h-4" />
-                  <span>卡片海报</span>
+                  <span>浮空卡片</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPosterStyle('editorial')}
+                  className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 ${
+                    posterStyle === 'editorial'
+                      ? 'bg-amber-950/70 border-amber-500 text-amber-300 font-semibold shadow-xs'
+                      : 'bg-neutral-850 border-neutral-750 text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <Newspaper className="w-4 h-4" />
+                  <span>文艺早报</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPosterStyle('knowledge')}
+                  className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 col-span-2 ${
+                    posterStyle === 'knowledge'
+                      ? 'bg-amber-950/70 border-amber-500 text-amber-300 font-semibold shadow-xs'
+                      : 'bg-neutral-850 border-neutral-750 text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>知识金句卡片 (Notion 风格)</span>
                 </button>
               </div>
             </div>
 
-            {/* Width & Pixel Ratio */}
+            {/* Paper Tone & Palette */}
+            <div className="p-3 bg-neutral-850 rounded-xl border border-neutral-800 space-y-2">
+              <div className="flex items-center justify-between text-neutral-200 font-medium">
+                <span className="flex items-center gap-1">
+                  <Palette className="w-3.5 h-3.5 text-blue-400" />
+                  <span>纸张底色与背景质感</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { id: 'white', name: '纯白', bg: '#ffffff', border: '#e2e8f0' },
+                  { id: 'warm-paper', name: '暖纸', bg: '#faf8f5', border: '#e6ded3' },
+                  { id: 'cream', name: '米乳', bg: '#fcfbf7', border: '#ede8dc' },
+                  { id: 'slate', name: '冷灰', bg: '#f1f5f9', border: '#cbd5e1' },
+                ].map((tone) => (
+                  <button
+                    key={tone.id}
+                    type="button"
+                    onClick={() => setPaperTone(tone.id as PaperToneType)}
+                    className={`p-1.5 rounded-lg border text-center transition flex flex-col items-center gap-1 ${
+                      paperTone === tone.id
+                        ? 'border-amber-500 bg-neutral-750 text-amber-300 font-semibold'
+                        : 'border-neutral-750 bg-neutral-800 text-neutral-400 hover:text-neutral-200'
+                    }`}
+                  >
+                    <span
+                      className="w-4 h-4 rounded-full border"
+                      style={{ backgroundColor: tone.bg, borderColor: tone.border }}
+                    />
+                    <span className="text-[10px]">{tone.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Multi-slice (九宫格/小红书分页切片) */}
+            <div className="p-3 bg-neutral-850 rounded-xl border border-neutral-800 space-y-2.5">
+              <div className="flex items-center justify-between text-neutral-200 font-medium">
+                <span className="flex items-center gap-1.5">
+                  <Scissors className="w-3.5 h-3.5 text-rose-400" />
+                  <span>多图分页切片导出</span>
+                </span>
+                <span className="text-[10px] text-neutral-400">朋友圈 / 小红书防模糊</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSliceMode('none')}
+                  className={`py-1.5 px-2 rounded-lg border transition text-[11px] ${
+                    sliceMode === 'none'
+                      ? 'bg-neutral-750 border-amber-500 text-amber-300 font-medium'
+                      : 'bg-neutral-800 border-neutral-750 text-neutral-400'
+                  }`}
+                >
+                  整张长图 (单张)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSliceMode('red_3_4')}
+                  className={`py-1.5 px-2 rounded-lg border transition text-[11px] ${
+                    sliceMode === 'red_3_4'
+                      ? 'bg-neutral-750 border-rose-500 text-rose-300 font-medium'
+                      : 'bg-neutral-800 border-neutral-750 text-neutral-400'
+                  }`}
+                >
+                  小红书 3:4 切片
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSliceMode('moments_1_1')}
+                  className={`py-1.5 px-2 rounded-lg border transition text-[11px] ${
+                    sliceMode === 'moments_1_1'
+                      ? 'bg-neutral-750 border-emerald-500 text-emerald-300 font-medium'
+                      : 'bg-neutral-800 border-neutral-750 text-neutral-400'
+                  }`}
+                >
+                  朋友圈 1:1 九宫格
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSliceMode('custom_parts')}
+                  className={`py-1.5 px-2 rounded-lg border transition text-[11px] ${
+                    sliceMode === 'custom_parts'
+                      ? 'bg-neutral-750 border-blue-500 text-blue-300 font-medium'
+                      : 'bg-neutral-800 border-neutral-750 text-neutral-400'
+                  }`}
+                >
+                  自定义等分切片
+                </button>
+              </div>
+
+              {sliceMode === 'custom_parts' && (
+                <div className="flex items-center justify-between text-[11px] text-neutral-300 pt-1">
+                  <span>切片数量:</span>
+                  <div className="flex items-center gap-1">
+                    {[3, 6, 9].map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => setSlicePartsCount(count)}
+                        className={`px-2 py-0.5 rounded text-[10px] border transition ${
+                          slicePartsCount === count
+                            ? 'bg-blue-600 border-blue-500 text-white font-bold'
+                            : 'bg-neutral-800 border-neutral-700 text-neutral-400'
+                        }`}
+                      >
+                        {count} 张等分
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sliceMode !== 'none' && (
+                <button
+                  type="button"
+                  onClick={() => handlePerformSlicing()}
+                  disabled={!generatedDataUrl || isSlicing}
+                  className="w-full py-1.5 bg-rose-600/30 hover:bg-rose-600/40 border border-rose-500/50 text-rose-200 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                >
+                  {isSlicing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>正在智能切割...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Scissors className="w-3.5 h-3.5 text-rose-400" />
+                      <span>立即执行切片 (预览 & 下载)</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Width & Pixel Ratio & Format */}
             <div className="p-3 bg-neutral-850 rounded-xl border border-neutral-800 space-y-3">
               <div>
                 <div className="flex items-center justify-between text-neutral-300 mb-1">
@@ -377,11 +648,11 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
               </div>
             </div>
 
-            {/* Elements Toggles */}
+            {/* Elements Toggles & Custom Watermark */}
             <div className="p-3 bg-neutral-850 rounded-xl border border-neutral-800 space-y-2.5">
               <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
                 <Sliders className="w-3.5 h-3.5 text-neutral-400" />
-                <span>包含视觉模块</span>
+                <span>包含视觉模块与签名</span>
               </div>
 
               <label className="flex items-center justify-between cursor-pointer text-neutral-300">
@@ -415,7 +686,7 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
               </label>
 
               <label className="flex items-center justify-between cursor-pointer text-neutral-300">
-                <span>包含排版引擎水印</span>
+                <span>包含品牌水印</span>
                 <input
                   type="checkbox"
                   checked={showWatermark}
@@ -423,6 +694,18 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                   className="rounded bg-neutral-800 border-neutral-700 text-emerald-500 focus:ring-0"
                 />
               </label>
+
+              {showWatermark && (
+                <div className="pt-1">
+                  <input
+                    type="text"
+                    value={customWatermarkText}
+                    onChange={(e) => setCustomWatermarkText(e.target.value)}
+                    placeholder="自定义文末签名（留空为默认）"
+                    className="w-full px-2.5 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-[11px] text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Primary Action Buttons */}
@@ -453,17 +736,17 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                 className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white rounded-xl font-semibold shadow-md transition flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                <span>下载长图 ({imageFormat.toUpperCase()})</span>
+                <span>下载整张长图 ({imageFormat.toUpperCase()})</span>
               </button>
 
               <button
                 type="button"
-                onClick={handleCopyImage}
-                disabled={isGenerating}
-                className="w-full py-2 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700 rounded-xl transition flex items-center justify-center gap-2"
+                onClick={handleCopy}
+                disabled={!generatedDataUrl || isGenerating}
+                className="w-full py-2 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 text-neutral-200 rounded-xl font-medium transition flex items-center justify-center gap-2"
               >
                 {isCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                <span>{isCopied ? '已复制长图！' : '复制长图到剪贴板'}</span>
+                <span>{isCopied ? '已复制长图到剪贴板！' : '复制长图到剪贴板 (Ctrl+V发送)'}</span>
               </button>
             </div>
           </div>
@@ -471,28 +754,34 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
           {/* Right: Live Canvas & High-fidelity Preview */}
           <div className="flex-1 bg-neutral-950 flex flex-col h-full overflow-hidden relative">
             {/* Top Control Bar: Mode Toggle + Full Zoom Controls */}
-            <div className="bg-neutral-900/95 backdrop-blur-md border-b border-neutral-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 text-xs">
+            <div className="px-4 py-2 border-b border-neutral-800 bg-neutral-900/90 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 z-10">
               {/* Left: Mode Toggle */}
-              <div className="flex items-center space-x-1 bg-neutral-850 p-1 rounded-xl border border-neutral-750">
+              <div className="flex items-center gap-1.5 p-1 bg-neutral-850 rounded-xl border border-neutral-750">
                 <button
                   type="button"
                   onClick={() => setPreviewMode('canvas')}
-                  className={`px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
                     previewMode === 'canvas'
-                      ? 'bg-amber-500 text-neutral-950 font-semibold shadow-xs'
-                      : 'text-neutral-300 hover:text-neutral-100 hover:bg-neutral-750'
+                      ? 'bg-neutral-700 text-white shadow-xs'
+                      : 'text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
-                  <Smartphone className="w-3.5 h-3.5" />
+                  <Layers className="w-3.5 h-3.5 text-blue-400" />
                   <span>实时排版画布</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPreviewMode('image')}
-                  className={`px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                  onClick={() => {
+                    if (!generatedDataUrl) {
+                      handleGenerateImage();
+                    } else {
+                      setPreviewMode('image');
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
                     previewMode === 'image'
-                      ? 'bg-emerald-500 text-neutral-950 font-semibold shadow-xs'
-                      : 'text-neutral-300 hover:text-neutral-100 hover:bg-neutral-750'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
@@ -501,46 +790,53 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   )}
                 </button>
+                {slicedImages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode('slices')}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                      previewMode === 'slices'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'text-neutral-400 hover:text-neutral-200'
+                    }`}
+                  >
+                    <Scissors className="w-3.5 h-3.5" />
+                    <span>分页切片 ({slicedImages.length})</span>
+                  </button>
+                )}
               </div>
 
-              {/* Center & Right: Precision Zoom & Fit Controls */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Quick Fit Buttons */}
-                <div className="flex items-center space-x-1 bg-neutral-850 px-1.5 py-1 rounded-xl border border-neutral-750">
-                  <button
-                    type="button"
-                    onClick={handleFitToScreen}
-                    className="px-2 py-0.5 rounded text-neutral-200 hover:text-amber-300 hover:bg-neutral-750 transition flex items-center gap-1 font-medium"
-                    title="自适应全图：自动缩放整篇长图，使顶部到底部完整展示在屏幕内，不被裁剪"
-                  >
-                    <Shrink className="w-3.5 h-3.5 text-amber-400" />
-                    <span>自适应全图</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleFitWidth}
-                    className="px-2 py-0.5 rounded text-neutral-200 hover:text-blue-300 hover:bg-neutral-750 transition flex items-center gap-1"
-                    title="适应宽度：缩放使长图宽度完美贴合视窗"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
-                    <span>适应宽度</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewZoom(1)}
-                    className={`px-2 py-0.5 rounded transition ${
-                      previewZoom === 1
-                        ? 'bg-neutral-700 text-amber-300 font-semibold'
-                        : 'text-neutral-300 hover:text-neutral-100 hover:bg-neutral-750'
-                    }`}
-                    title="100% 原始尺寸"
-                  >
-                    <span>100%</span>
-                  </button>
-                </div>
+              {/* Right: Zoom Toolbar */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleFitToScreen}
+                  className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg text-[11px] text-neutral-300 hover:text-white transition flex items-center gap-1"
+                  title="全图自适应视野：自动缩放完整显示整篇长图，不裁切上下任何内容"
+                >
+                  <Shrink className="w-3 h-3 text-emerald-400" />
+                  <span>自适应全图</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFitWidth}
+                  className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg text-[11px] text-neutral-300 hover:text-white transition flex items-center gap-1"
+                  title="适合宽度：贴合容器宽度垂直滚动浏览"
+                >
+                  <Maximize2 className="w-3 h-3 text-blue-400" />
+                  <span>适合宽度</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom(1.0)}
+                  className="px-2 py-1 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg text-[11px] text-neutral-300 hover:text-white transition"
+                  title="100% 原始大小"
+                >
+                  100%
+                </button>
 
-                {/* Stepper and range slider */}
-                <div className="flex items-center space-x-1.5 bg-neutral-850 px-2 py-1 rounded-xl border border-neutral-750">
+                {/* Stepper Zoom Buttons & Range Slider */}
+                <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded-lg border border-neutral-700 text-xs">
                   <button
                     type="button"
                     onClick={() => setPreviewZoom((z) => Math.max(0.1, Number((z - 0.1).toFixed(2))))}
@@ -607,259 +903,412 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                         ref={captureContainerRef}
                         style={{
                           width: `${posterWidth}px`,
-                          backgroundColor: posterStyle === 'card' ? '#f4f6f8' : '#ffffff',
-                          color: '#2b2b2b',
-                          padding: posterStyle === 'card' ? '20px 16px' : '0px',
+                          backgroundColor:
+                            posterStyle === 'card'
+                              ? '#f1f5f9'
+                              : posterStyle === 'editorial'
+                              ? '#fbf9f5'
+                              : posterStyle === 'knowledge'
+                              ? '#0f172a'
+                              : toneBgColor,
+                          color: posterStyle === 'knowledge' ? '#f8fafc' : '#2b2b2b',
+                          padding: posterStyle === 'card' ? '20px 16px' : posterStyle === 'knowledge' ? '18px 14px' : '0px',
                           boxSizing: 'border-box',
                         }}
                         className="font-sans select-none"
                       >
-                {/* Outer Wrapper for Card Style */}
-                <div
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: posterStyle === 'card' ? '12px' : '0px',
-                    boxShadow: posterStyle === 'card' ? '0 8px 24px rgba(0,0,0,0.08)' : 'none',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* Style 1: Mobile Simulator Top Bar */}
-                  {posterStyle === 'mobile' && (
-                    <div
-                      style={{
-                        backgroundColor: '#ededed',
-                        borderBottom: '1px solid #e0e0e0',
-                        padding: '10px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '11px',
-                        color: '#666666',
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>09:41</span>
-                      <span style={{ fontWeight: 600, color: '#333333' }}>
-                        {metadata.author || '微信公众号'}
-                      </span>
-                      <span>5G 🔋</span>
-                    </div>
-                  )}
-
-                  {/* Optional Cover Image */}
-                  {showCover && metadata.cover && (
-                    <div style={{ width: '100%', maxHeight: '240px', overflow: 'hidden' }}>
-                      <img
-                        src={metadata.cover}
-                        alt="封面"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                        crossOrigin="anonymous"
-                      />
-                    </div>
-                  )}
-
-                  {/* Header / Title Section */}
-                  {showMetaHeader && (
-                    <div style={{ padding: '20px 18px 12px 18px' }}>
-                      <h1
-                        style={{
-                          fontSize: posterStyle === 'weibo' ? '22px' : '20px',
-                          fontWeight: 700,
-                          lineHeight: 1.35,
-                          color: '#1a1a1a',
-                          margin: '0 0 10px 0',
-                        }}
-                      >
-                        {metadata.title || '未命名文章'}
-                      </h1>
-
-                      {/* Author & Timestamp */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          fontSize: '12px',
-                          color: '#888888',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        <span style={{ color: '#576b95', fontWeight: 600 }}>
-                          {metadata.author || '原创'}
-                        </span>
-                        <span>•</span>
-                        <span>{new Date().toLocaleDateString('zh-CN')}</span>
-                        {metadata.digest && (
-                          <span
-                            style={{
-                              backgroundColor: '#f3f4f6',
-                              color: '#6b7280',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              fontSize: '10px',
-                            }}
-                          >
-                            精选
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Digest Quote if present */}
-                      {metadata.digest && (
+                        {/* Outer Wrapper for Card Style */}
                         <div
                           style={{
-                            backgroundColor: '#f8fafc',
-                            borderLeft: `3px solid ${currentThemeObj?.primaryColor || '#1e80ff'}`,
-                            padding: '8px 12px',
-                            fontSize: '12px',
-                            color: '#475569',
-                            lineHeight: 1.5,
-                            margin: '10px 0 0 0',
-                            borderRadius: '0 6px 6px 0',
+                            backgroundColor:
+                              posterStyle === 'knowledge'
+                                ? '#1e293b'
+                                : toneBgColor,
+                            color: posterStyle === 'knowledge' ? '#e2e8f0' : '#2b2b2b',
+                            borderRadius: posterStyle === 'card' || posterStyle === 'knowledge' ? '14px' : '0px',
+                            boxShadow:
+                              posterStyle === 'card' || posterStyle === 'knowledge'
+                                ? '0 10px 30px rgba(0,0,0,0.12)'
+                                : 'none',
+                            overflow: 'hidden',
+                            border: posterStyle === 'editorial' ? '1px solid #e7dfd5' : 'none',
                           }}
                         >
-                          <strong>导语：</strong> {metadata.digest}
+                          {/* Style 1: Mobile Simulator Top Bar */}
+                          {posterStyle === 'mobile' && (
+                            <div
+                              style={{
+                                backgroundColor: '#ededed',
+                                borderBottom: '1px solid #e0e0e0',
+                                padding: '10px 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifySelf: 'stretch',
+                                justifyContent: 'space-between',
+                                fontSize: '11px',
+                                color: '#666666',
+                              }}
+                            >
+                              <span style={{ fontWeight: 600 }}>09:41</span>
+                              <span style={{ fontWeight: 600, color: '#333333' }}>
+                                {metadata.author || '微信公众号'}
+                              </span>
+                              <span>5G 🔋</span>
+                            </div>
+                          )}
+
+                          {/* Style 4: Editorial Top Header */}
+                          {posterStyle === 'editorial' && (
+                            <div
+                              style={{
+                                borderBottom: '3px double #2c2c2c',
+                                padding: '16px 20px 12px 20px',
+                                textAlign: 'center',
+                                backgroundColor: '#fcfaf6',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: '11px',
+                                  letterSpacing: '3px',
+                                  textTransform: 'uppercase',
+                                  color: '#78716c',
+                                  fontWeight: 600,
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                THE DAILY DIGEST · 深度专栏
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '11px',
+                                  color: '#a8a29e',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  borderTop: '1px solid #e7e5e4',
+                                  paddingTop: '4px',
+                                  marginTop: '6px',
+                                }}
+                              >
+                                <span>{new Date().toLocaleDateString('zh-CN')}</span>
+                                <span>{metadata.author || '主理人原创'}</span>
+                                <span>VOL. 2026</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Style 5: Knowledge Card Gradient Banner */}
+                          {posterStyle === 'knowledge' && (
+                            <div
+                              style={{
+                                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                padding: '12px 18px',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                              }}
+                            >
+                              <span>💡 KNOWLEDGE CARD · 精选知识卡片</span>
+                              <span style={{ opacity: 0.85 }}>{metadata.author || '精选思考'}</span>
+                            </div>
+                          )}
+
+                          {/* Optional Cover Image */}
+                          {showCover && metadata.cover && (
+                            <div style={{ width: '100%', maxHeight: '240px', overflow: 'hidden' }}>
+                              <img
+                                src={metadata.cover}
+                                alt="封面"
+                                referrerPolicy="no-referrer"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                crossOrigin="anonymous"
+                              />
+                            </div>
+                          )}
+
+                          {/* Header / Title Section */}
+                          {showMetaHeader && (
+                            <div style={{ padding: '20px 20px 12px 20px' }}>
+                              <h1
+                                style={{
+                                  fontSize:
+                                    posterStyle === 'weibo'
+                                      ? '22px'
+                                      : posterStyle === 'editorial'
+                                      ? '23px'
+                                      : '20px',
+                                  fontWeight: 700,
+                                  lineHeight: 1.35,
+                                  color: posterStyle === 'knowledge' ? '#f8fafc' : '#1a1a1a',
+                                  margin: '0 0 10px 0',
+                                  fontFamily: posterStyle === 'editorial' ? 'serif, system-ui' : 'inherit',
+                                }}
+                              >
+                                {metadata.title || '未命名文章'}
+                              </h1>
+
+                              {/* Author & Timestamp */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  fontSize: '12px',
+                                  color: posterStyle === 'knowledge' ? '#94a3b8' : '#888888',
+                                  marginBottom: '8px',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color:
+                                      posterStyle === 'knowledge'
+                                        ? '#38bdf8'
+                                        : currentThemeObj?.primaryColor || '#576b95',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {metadata.author || '原创'}
+                                </span>
+                                <span>•</span>
+                                <span>{new Date().toLocaleDateString('zh-CN')}</span>
+                                {metadata.digest && (
+                                  <span
+                                    style={{
+                                      backgroundColor: posterStyle === 'knowledge' ? '#334155' : '#f3f4f6',
+                                      color: posterStyle === 'knowledge' ? '#cbd5e1' : '#6b7280',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      fontSize: '10px',
+                                    }}
+                                  >
+                                    精选
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Digest Quote if present */}
+                              {metadata.digest && (
+                                <div
+                                  style={{
+                                    backgroundColor:
+                                      posterStyle === 'knowledge'
+                                        ? '#0f172a'
+                                        : posterStyle === 'editorial'
+                                        ? '#f5f2eb'
+                                        : '#f8fafc',
+                                    borderLeft: `3px solid ${
+                                      posterStyle === 'knowledge'
+                                        ? '#38bdf8'
+                                        : currentThemeObj?.primaryColor || '#1e80ff'
+                                    }`,
+                                    padding: '10px 14px',
+                                    fontSize: '12px',
+                                    color: posterStyle === 'knowledge' ? '#cbd5e1' : '#475569',
+                                    lineHeight: 1.55,
+                                    margin: '10px 0 0 0',
+                                    borderRadius: '0 6px 6px 0',
+                                  }}
+                                >
+                                  <strong>导语：</strong> {metadata.digest}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Main Article Inlined Content */}
+                          <div
+                            style={{
+                              padding: '8px 20px 24px 20px',
+                              fontSize: '15px',
+                              lineHeight: '1.75',
+                              color: posterStyle === 'knowledge' ? '#e2e8f0' : '#333333',
+                            }}
+                            dangerouslySetInnerHTML={{ __html: inlinedHtml }}
+                          />
+
+                          {/* Style 1 Mobile Interaction Footer */}
+                          {showFooterInteraction && posterStyle === 'mobile' && (
+                            <div
+                              style={{
+                                padding: '14px 18px',
+                                borderTop: '1px solid #f0f0f0',
+                                backgroundColor: '#fafafa',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: '12px',
+                                color: '#8c8c8c',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <span>阅读 10万+</span>
+                                <span style={{ color: '#576b95' }}>在看 999+</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>❤️ 点赞</span>
+                                <span>•</span>
+                                <span>分享</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Style 2 Weibo Divider */}
+                          {posterStyle === 'weibo' && (
+                            <div
+                              style={{
+                                textAlign: 'center',
+                                padding: '12px',
+                                borderTop: '1px dashed #e5e7eb',
+                                fontSize: '11px',
+                                color: '#9ca3af',
+                              }}
+                            >
+                              —— 微博 / 社交网络专享长图版 ——
+                            </div>
+                          )}
+
+                          {/* Footer Watermark */}
+                          {showWatermark && (
+                            <div
+                              style={{
+                                padding: '12px 18px',
+                                backgroundColor:
+                                  posterStyle === 'knowledge'
+                                    ? '#0f172a'
+                                    : '#fbfbfb',
+                                borderTop:
+                                  posterStyle === 'knowledge'
+                                    ? '1px solid #334155'
+                                    : '1px solid #f0f0f0',
+                                textAlign: 'center',
+                                fontSize: '10px',
+                                color: posterStyle === 'knowledge' ? '#64748b' : '#a3a3a3',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                              }}
+                            >
+                              <span>
+                                {customWatermarkText.trim() ||
+                                  `✨ 排版生成于 WeChat Draft Publisher · 主题：${currentThemeObj?.name || activeTheme}`}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Main Article Inlined Content */}
-                  <div
-                    style={{
-                      padding: '8px 18px 24px 18px',
-                      fontSize: '15px',
-                      lineHeight: '1.75',
-                      color: '#333333',
-                    }}
-                    dangerouslySetInnerHTML={{ __html: inlinedHtml }}
-                  />
-
-                  {/* Style 1 Mobile Interaction Footer */}
-                  {showFooterInteraction && posterStyle === 'mobile' && (
-                    <div
-                      style={{
-                        padding: '14px 18px',
-                        borderTop: '1px solid #f0f0f0',
-                        backgroundColor: '#fafafa',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '12px',
-                        color: '#8c8c8c',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <span>阅读 10万+</span>
-                        <span style={{ color: '#576b95' }}>在看 999+</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>❤️ 点赞</span>
+                    </div>
+                  </div>
+                </div>
+              ) : previewMode === 'slices' ? (
+                /* Multi-slice View */
+                <div className="m-auto flex flex-col items-center gap-4 py-4 max-w-full">
+                  <div className="flex items-center justify-between gap-3 text-xs text-neutral-300 bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl shadow-md w-full max-w-xl">
+                    <span className="text-rose-400 font-semibold flex items-center gap-1.5">
+                      <Scissors className="w-3.5 h-3.5" />
+                      已切分为 {slicedImages.length} 张独立图片
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleDownloadAllSlices}
+                      className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>打包极速下载全部切片</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl p-2">
+                    {slicedImages.map((slice) => (
+                      <div
+                        key={slice.index}
+                        className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 shadow-md flex flex-col gap-2"
+                      >
+                        <div className="text-[11px] font-mono text-neutral-400 flex items-center justify-between">
+                          <span className="text-rose-300 font-bold">切片 #{slice.index}</span>
+                          <span>{slice.width} × {slice.height}px</span>
+                        </div>
+                        <div className="rounded-lg overflow-hidden border border-neutral-750 bg-white">
+                          <img
+                            src={slice.dataUrl}
+                            alt={`切片 ${slice.index}`}
+                            className="w-full h-auto object-cover display-block"
+                          />
+                        </div>
+                        <a
+                          href={slice.dataUrl}
+                          download={`slice_${slice.index}.png`}
+                          className="w-full py-1 bg-neutral-800 hover:bg-neutral-750 text-neutral-200 rounded text-center text-xs transition"
+                        >
+                          单独下载此切片
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* Rendered Image View */
+                <div className="m-auto flex flex-col items-center gap-4 py-4 max-w-full">
+                  {generatedDataUrl ? (
+                    <>
+                      <div className="flex items-center gap-3 text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3.5 py-1.5 rounded-xl shadow-md">
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          长图渲染就绪
+                        </span>
                         <span>•</span>
-                        <span>分享</span>
+                        {imageDimensions && (
+                          <span className="font-mono text-neutral-200">
+                            {imageDimensions.width} × {imageDimensions.height} px
+                          </span>
+                        )}
+                        <span>•</span>
+                        <span className="uppercase text-amber-300 font-mono font-medium">
+                          {imageFormat} ({pixelRatio}x Retina)
+                        </span>
                       </div>
-                    </div>
-                  )}
 
-                  {/* Style 2 Weibo Divider */}
-                  {posterStyle === 'weibo' && (
-                    <div
-                      style={{
-                        textAlign: 'center',
-                        padding: '12px',
-                        borderTop: '1px dashed #e5e7eb',
-                        fontSize: '11px',
-                        color: '#9ca3af',
-                      }}
-                    >
-                      —— 微博 / 社交网络专享长图版 ——
-                    </div>
-                  )}
-
-                  {/* Footer Watermark */}
-                  {showWatermark && (
-                    <div
-                      style={{
-                        padding: '12px 18px',
-                        backgroundColor: '#fbfbfb',
-                        borderTop: '1px solid #f0f0f0',
-                        textAlign: 'center',
-                        fontSize: '10px',
-                        color: '#a3a3a3',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <span>✨ 排版生成于 WeChat Draft Publisher</span>
-                      <span>•</span>
-                      <span>主题：{currentThemeObj?.name || activeTheme}</span>
+                      <div
+                        style={{
+                          width: `${scaledWidth}px`,
+                          height: contentHeight ? `${scaledHeight}px` : 'auto',
+                          minWidth: `${scaledWidth}px`,
+                          minHeight: contentHeight ? `${scaledHeight}px` : 'auto',
+                          position: 'relative',
+                        }}
+                        className="shadow-2xl rounded-2xl overflow-hidden bg-white"
+                      >
+                        <img
+                          src={generatedDataUrl}
+                          alt="已生成高清长图"
+                          style={{
+                            width: `${posterWidth}px`,
+                            transform: `scale(${previewZoom})`,
+                            transformOrigin: 'top left',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            display: 'block',
+                          }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-20 px-6 text-neutral-400 space-y-3">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-amber-400" />
+                      <p className="text-sm font-medium text-neutral-200">高清长图正在后台光栅化渲染中...</p>
+                      <p className="text-xs text-neutral-500">渲染完毕后即可在此预览无损全图并直接复制或下载</p>
                     </div>
                   )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
-      ) : (
-        <div className="m-auto flex flex-col items-center gap-4 py-4 max-w-full">
-          {generatedDataUrl ? (
-            <>
-              <div className="flex items-center gap-3 text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3.5 py-1.5 rounded-xl shadow-md">
-                <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  长图渲染就绪
-                </span>
-                <span>•</span>
-                {imageDimensions && (
-                  <span className="font-mono text-neutral-200">
-                    {imageDimensions.width} × {imageDimensions.height} px
-                  </span>
-                )}
-                <span>•</span>
-                <span className="uppercase text-amber-300 font-mono font-medium">
-                  {imageFormat} ({pixelRatio}x Retina)
-                </span>
-              </div>
-
-              <div
-                style={{
-                  width: `${scaledWidth}px`,
-                  height: contentHeight ? `${scaledHeight}px` : 'auto',
-                  minWidth: `${scaledWidth}px`,
-                  minHeight: contentHeight ? `${scaledHeight}px` : 'auto',
-                  position: 'relative',
-                }}
-                className="shadow-2xl rounded-2xl overflow-hidden bg-white"
-              >
-                <img
-                  src={generatedDataUrl}
-                  alt="已生成高清长图"
-                  style={{
-                    width: `${posterWidth}px`,
-                    transform: `scale(${previewZoom})`,
-                    transformOrigin: 'top left',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    display: 'block',
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-20 px-6 text-neutral-400 space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-amber-400" />
-              <p className="text-sm font-medium text-neutral-200">高清长图正在后台光栅化渲染中...</p>
-              <p className="text-xs text-neutral-500">渲染完毕后即可在此预览无损全图并直接复制或下载</p>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </div>
-  </div>
-</div>
-</div>
-</div>
-);
+  );
 };
