@@ -12,6 +12,7 @@ import {
   Layers,
   Share2,
   FileImage,
+  ShieldCheck,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -38,6 +39,8 @@ interface ToolbarProps {
   onOpenMultiArticleComposer?: () => void;
   multiArticlesCount?: number;
   onOpenLongImageExport?: () => void;
+  onOpenSafetyAudit?: () => void;
+  safetyScore?: number;
 }
 
 export const THEME_OPTIONS = [
@@ -74,6 +77,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenMultiArticleComposer,
   multiArticlesCount = 1,
   onOpenLongImageExport,
+  onOpenSafetyAudit,
+  safetyScore,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -362,6 +367,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             {digestLength}/120
           </strong>
         </div>
+
+        {/* Pre-publish Safety & Compliance Guard Trigger */}
+        {onOpenSafetyAudit && (
+          <button
+            type="button"
+            onClick={onOpenSafetyAudit}
+            id="btn-toolbar-safety-audit"
+            className={`flex items-center space-x-1 px-2 py-0.5 rounded border text-[11px] sm:text-xs font-medium transition ${
+              (safetyScore ?? 100) >= 90
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900/50'
+                : (safetyScore ?? 100) >= 70
+                ? 'bg-amber-950/60 text-amber-300 border-amber-800 hover:bg-amber-900/60'
+                : 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60 animate-pulse'
+            }`}
+            title="合规安全体检（广告法极限词、微信违规诱导分享与外链扫描）"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">合规体检</span>
+            {safetyScore !== undefined && (
+              <span className="font-bold font-mono ml-0.5">{safetyScore}分</span>
+            )}
+          </button>
+        )}
 
         {/* View Mode Toggle */}
         <div className="flex items-center bg-neutral-800/80 p-0.5 rounded-lg border border-neutral-700/60">

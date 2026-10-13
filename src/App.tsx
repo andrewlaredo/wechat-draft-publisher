@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/Header.tsx';
 import { Toolbar, THEME_OPTIONS } from './components/Toolbar.tsx';
 import { MarkdownEditor } from './components/MarkdownEditor.tsx';
@@ -18,6 +18,8 @@ import { MatrixPublishModal } from './components/MatrixPublishModal.tsx';
 import { WatchModeModal } from './components/WatchModeModal.tsx';
 import { ArticleExtractModal } from './components/ArticleExtractModal.tsx';
 import { LongImageExportModal } from './components/LongImageExportModal.tsx';
+import { SafetyAuditModal } from './components/SafetyAuditModal.tsx';
+import { performSafetyAudit } from './utils/safetyAudit.ts';
 import {
   WeChatAccountConfig,
   getStoredAccounts,
@@ -266,9 +268,14 @@ export default function App() {
   const [isWatchModeOpen, setIsWatchModeOpen] = useState<boolean>(false);
   const [isExtractArticleOpen, setIsExtractArticleOpen] = useState<boolean>(false);
   const [isLongImageExportOpen, setIsLongImageExportOpen] = useState<boolean>(false);
+  const [isSafetyAuditOpen, setIsSafetyAuditOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
+
+  const currentTargetAccount = useMemo(() => {
+    return accounts.find((a) => a.id === activeAccountId) || accounts[0] || null;
+  }, [accounts, activeAccountId]);
 
   const handleSwitchAccount = async (id: string) => {
     setActiveAccountId(id);
@@ -404,6 +411,16 @@ export default function App() {
       console.warn('Local render fallback error:', localErr);
     }
   }, [markdown, activeTheme, themeEnabled, macStyle, customThemes]);
+
+  // Pre-publish Content Compliance & Safety Audit Report
+  const safetyReport = useMemo(() => {
+    return performSafetyAudit({
+      markdown,
+      title: metadata.title,
+      digest: metadata.digest,
+      inlinedHtml,
+    });
+  }, [markdown, metadata.title, metadata.digest, inlinedHtml]);
 
   // 3. Handle Template Selection
   const handleSelectSample = (sampleId: string) => {
@@ -757,11 +774,21 @@ export default function App() {
     }
   }, [markdown, metadata.title, showToast]);
 
-  // Handle Publish Click with Gentle Credentials Notice Interception
+  // Handle Publish Click with Gentle Credentials Notice & Safety Audit Interception
   const handlePublishClick = (dryRun: boolean) => {
     if (!dryRun && (!config.appId || !config.hasSecret)) {
       setIsNoCredentialsPromptOpen(true);
       return;
+    }
+    if (!dryRun && safetyReport.highCount > 0) {
+      const targetName = currentTargetAccount?.name || config.appId;
+      const confirmed = confirm(
+        `【发布合规安全警示】\n\n检测到当前文章包含 ${safetyReport.highCount} 处高规违规项（如诱导分享或超长 HTML），可能导致微信公众平台审核拦截甚至账号处罚！\n\n目标发布账号：「${targetName}」\n\n是否仍然强制推送？\n（点击【取消】可查看合规体检报告并一键自动修复）`
+      );
+      if (!confirmed) {
+        setIsSafetyAuditOpen(true);
+        return;
+      }
     }
     executePublish(dryRun);
   };
@@ -822,6 +849,7 @@ export default function App() {
         onOpenWatchMode={() => setIsWatchModeOpen(true)}
         onOpenExtractArticle={() => setIsExtractArticleOpen(true)}
         onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
+        onOpenSafetyAudit={() => setIsSafetyAuditOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -861,6 +889,8 @@ export default function App() {
         onOpenMultiArticleComposer={() => setIsMultiArticleOpen(true)}
         multiArticlesCount={multiArticles.length}
         onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
+        onOpenSafetyAudit={() => setIsSafetyAuditOpen(true)}
+        safetyScore={safetyReport.score}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -912,6 +942,9 @@ export default function App() {
         logs={publishLogs}
         onRetry={(dryRun, force) => executePublish(dryRun, force)}
         onCopyHtml={handleCopyWeChatHtml}
+        targetAccount={currentTargetAccount}
+        safetyScore={safetyReport.score}
+        onOpenSafetyAudit={() => setIsSafetyAuditOpen(true)}
       />
 
       {/* Settings Modal */}
@@ -1110,6 +1143,20 @@ export default function App() {
         metadata={metadata}
         activeTheme={activeTheme}
         currentThemeObj={currentThemeObj}
+      />
+
+      {/* Content Safety & Compliance Audit Guard Modal */}
+      <SafetyAuditModal
+        isOpen={isSafetyAuditOpen}
+        onClose={() => setIsSafetyAuditOpen(false)}
+        markdown={markdown}
+        title={metadata.title}
+        digest={metadata.digest}
+        inlinedHtml={inlinedHtml}
+        onApplyFixedMarkdown={(fixedMd) => {
+          setMarkdown(fixedMd);
+          showToast('✨ 已完成合规脱敏修复！');
+        }}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}

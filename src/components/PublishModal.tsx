@@ -8,13 +8,16 @@ import {
   Terminal,
   ExternalLink,
   ShieldCheck,
+  ShieldAlert,
   Play,
   RotateCcw,
   Copy,
   FileText,
   Check,
+  UserCheck,
 } from 'lucide-react';
 import { PublishLogItem } from '../types/app.ts';
+import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
 interface PublishModalProps {
   isOpen: boolean;
@@ -26,6 +29,9 @@ interface PublishModalProps {
   logs: PublishLogItem[];
   onRetry: (dryRun: boolean, force: boolean) => void;
   onCopyHtml?: () => void;
+  targetAccount?: WeChatAccountConfig | null;
+  safetyScore?: number;
+  onOpenSafetyAudit?: () => void;
 }
 
 export const PublishModal: React.FC<PublishModalProps> = ({
@@ -38,6 +44,9 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   logs,
   onRetry,
   onCopyHtml,
+  targetAccount,
+  safetyScore,
+  onOpenSafetyAudit,
 }) => {
   const [hasCopied, setHasCopied] = useState<boolean>(false);
   if (!isOpen) return null;
@@ -62,13 +71,13 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const currentStep = latestLog ? latestLog.step : 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="w-full max-w-xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm">
+      <div className="w-full max-w-xl bg-neutral-900 border border-neutral-750 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-850">
           <div className="flex items-center space-x-2.5">
             <div
-              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                 isDryRun
                   ? 'bg-amber-950/80 text-amber-400 border border-amber-800/60'
                   : 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
@@ -93,8 +102,42 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           </button>
         </div>
 
+        {/* Security & Target Account Bar */}
+        <div className="px-5 py-2.5 bg-neutral-950/90 border-b border-neutral-800 flex items-center justify-between text-xs">
+          <div className="flex items-center space-x-2 min-w-0">
+            <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-neutral-400">目标发布账号:</span>
+            <span className="text-neutral-200 font-semibold truncate">
+              {targetAccount?.name || '当前默认微信公众号'}
+            </span>
+            {targetAccount?.tag && (
+              <span className="px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 border border-neutral-700 hidden sm:inline">
+                {targetAccount.tag}
+              </span>
+            )}
+          </div>
+
+          {safetyScore !== undefined && (
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <span className="text-neutral-500 text-[11px]">合规评分:</span>
+              <button
+                type="button"
+                onClick={onOpenSafetyAudit}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${
+                  safetyScore >= 90
+                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                    : 'bg-amber-950 text-amber-300 border-amber-800'
+                }`}
+                title="查看合规体检报告"
+              >
+                {safetyScore} 分
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-5 text-xs">
+        <div className="p-5 overflow-y-auto space-y-4 text-xs">
           {/* 4 Pipeline Steps */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {steps.map((s) => {
@@ -147,6 +190,10 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 <div className="flex justify-between">
                   <span className="text-neutral-500">草稿 media_id:</span>
                   <span className="text-emerald-300 font-bold">{result.media_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">目标账号:</span>
+                  <span className="text-neutral-200">{targetAccount?.name || '当前公众号'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">消息类型:</span>
@@ -221,7 +268,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 </div>
               )}
 
-              {/* 20,000 Limit Guide & One-click Rich Text Copy Solution */}
+              {/* 20,000 Limit Guide */}
               {(error.includes('20,000') || error.includes('20000') || error.includes('硬性上限')) && (
                 <div className="p-3.5 bg-neutral-900/95 rounded-xl border border-amber-800/80 text-neutral-200 text-xs space-y-2.5">
                   <div className="font-semibold text-amber-400 flex items-center gap-1.5">
@@ -229,7 +276,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                   </div>
                   <div className="text-neutral-300 leading-relaxed text-[11px] space-y-1.5">
                     <p>
-                      • <strong>为什么正文字数很少却提示超限？</strong> 微信官方草稿箱 API (<code className="text-amber-200 bg-neutral-800 px-1 py-0.5 rounded">draft/add</code>) 的 20,000 限制针对的是底层 <strong className="text-amber-300">HTML 代码字符数</strong>（包含每个段落的内联 CSS 样式 <code className="text-amber-200">style="..."</code> 以及转换后微信 CDN 图片超长链接），而非文章的纯汉字字数。
+                      • <strong>为什么正文字数很少却提示超限？</strong> 微信官方草稿箱 API (<code className="text-amber-200 bg-neutral-800 px-1 py-0.5 rounded">draft/add</code>) 的 20,000 限制针对的是底层 <strong className="text-amber-300">HTML 代码字符数</strong>（包含每个段落的内联 CSS 样式），而非文章的纯汉字字数。
                     </p>
                     <p>
                       • <strong>零限制直推替代方案</strong>：微信公众平台<strong>网页版后台编辑器没有 20,000 字符 API 限制</strong>，支持海量长文排版！点击下方按钮直接复制完整排版，去公众号后台粘贴即可：

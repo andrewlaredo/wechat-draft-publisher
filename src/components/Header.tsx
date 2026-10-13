@@ -18,6 +18,7 @@ import {
   UserCheck,
   DownloadCloud,
   FileImage,
+  ShieldCheck,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -34,6 +35,7 @@ interface HeaderProps {
   onOpenWatchMode?: () => void;
   onOpenExtractArticle?: () => void;
   onOpenLongImageExport?: () => void;
+  onOpenSafetyAudit?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -55,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWatchMode,
   onOpenExtractArticle,
   onOpenLongImageExport,
+  onOpenSafetyAudit,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
@@ -168,10 +171,23 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onOpenMatrixPublish}
             id="btn-header-matrix-publish"
             className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white shadow-xs border border-amber-500/40 transition"
-            title="一键多渠道矩阵分发（微信、知乎、稀土掘金、CSDN、小红书贴图）"
+            title="一键 9 大渠道矩阵分发（微信、知乎、稀土掘金、CSDN、小红书、今日头条、简书、博客园、微博）"
           >
             <Share2 className="w-3.5 h-3.5 text-amber-200" />
             <span className="hidden lg:inline">多平台矩阵</span>
+          </button>
+        )}
+
+        {/* Pre-publish Safety & Compliance Guard */}
+        {onOpenSafetyAudit && (
+          <button
+            onClick={onOpenSafetyAudit}
+            id="btn-header-safety-audit"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-750 text-emerald-300 border border-emerald-800/60 transition"
+            title="内容合规体检：新广告法极限词、微信诱导分享与外链风险扫描"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden xl:inline">合规体检</span>
           </button>
         )}
 
@@ -223,13 +239,19 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="max-w-[90px] truncate hidden md:inline">
                 {activeAccount?.name || '默认公众号'}
               </span>
+              {activeAccount?.tag && (
+                <span className="text-[10px] px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800 hidden 2xl:inline">
+                  {activeAccount.tag}
+                </span>
+              )}
               <ChevronDown className={`w-3 h-3 text-neutral-400 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isAccountMenuOpen && (
-              <div className="absolute right-0 mt-1.5 w-56 rounded-xl bg-neutral-850 border border-neutral-700 shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3 py-1.5 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider border-b border-neutral-800">
-                  切换目标公众号
+              <div className="absolute right-0 mt-1.5 w-64 rounded-xl bg-neutral-850 border border-neutral-700 shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-1.5 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider border-b border-neutral-800 flex justify-between items-center">
+                  <span>切换目标公众号</span>
+                  <span className="text-neutral-500 font-normal">{accounts.length} 个账号</span>
                 </div>
                 {accounts.map((acc) => (
                   <button
@@ -243,7 +265,14 @@ export const Header: React.FC<HeaderProps> = ({
                     }`}
                   >
                     <div className="truncate pr-2">
-                      <div className="truncate">{acc.name}</div>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="truncate">{acc.name}</span>
+                        {acc.tag && (
+                          <span className="px-1 py-0.2 rounded text-[9px] bg-neutral-800 text-neutral-400 border border-neutral-750 shrink-0">
+                            {acc.tag}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-neutral-500 font-mono truncate">{acc.appId}</div>
                     </div>
                     {acc.id === activeAccount?.id && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
@@ -257,7 +286,7 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className="w-full px-3 py-1.5 text-left text-[11px] text-blue-400 hover:bg-neutral-800 transition flex items-center gap-1"
                   >
-                    <span>+ 管理多账号凭据</span>
+                    <span>+ 矩阵管理与账号体检</span>
                   </button>
                 </div>
               </div>

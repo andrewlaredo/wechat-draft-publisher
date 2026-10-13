@@ -13,6 +13,11 @@ import {
   Plus,
   Trash2,
   Check,
+  Download,
+  Upload,
+  Activity,
+  Tag,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   WeChatAccountConfig,
@@ -20,6 +25,8 @@ import {
   saveStoredAccounts,
   getActiveAccountId,
   setActiveAccountId,
+  exportAccountsBackupJson,
+  importAccountsFromJson,
 } from '../utils/accountManager.ts';
 
 interface SettingsModalProps {
@@ -52,6 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
+  const [isBatchTesting, setIsBatchTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Multi-accounts state
@@ -63,6 +71,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         name: '当前微信公众号',
         appId: initialAppId,
         accountType: 'subscription',
+        tag: '主号·默认',
+        color: 'emerald',
         createdAt: Date.now(),
       };
       saveStoredAccounts([defaultAcc]);
@@ -74,6 +84,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAccName, setNewAccName] = useState('');
   const [newAccType, setNewAccType] = useState<'subscription' | 'service' | 'test'>('subscription');
+  const [newAccTag, setNewAccTag] = useState('主号·核心');
+  const [newAccNotes, setNewAccNotes] = useState('');
   const [newAccAppId, setNewAccAppId] = useState('');
   const [newAccSecret, setNewAccSecret] = useState('');
 
@@ -84,12 +96,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       alert('请填写公众号名称与 AppID');
       return;
     }
+    const colorMap: Record<string, string> = {
+      subscription: 'emerald',
+      service: 'blue',
+      test: 'purple',
+    };
     const newAcc: WeChatAccountConfig = {
       id: `acc-${Date.now()}`,
       name: newAccName.trim(),
       appId: newAccAppId.trim(),
       appSecret: newAccSecret.trim() || undefined,
       accountType: newAccType,
+      tag: newAccTag.trim() || '通用账号',
+      color: colorMap[newAccType] || 'emerald',
+      notes: newAccNotes.trim() || undefined,
       createdAt: Date.now(),
     };
     const nextList = [...accounts, newAcc];
@@ -99,6 +119,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNewAccName('');
     setNewAccAppId('');
     setNewAccSecret('');
+    setNewAccNotes('');
     onAccountsChange?.(nextList, activeAccId);
   };
 
@@ -114,7 +135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onAccountsChange?.(accounts, acc.id);
     setTestResult({
       success: true,
-      message: `已成功切换发布目标为「${acc.name}」！`,
+      message: `已成功切换当前发布目标为「${acc.name}」！`,
     });
   };
 
@@ -125,6 +146,84 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       saveStoredAccounts(nextList);
       onAccountsChange?.(nextList, activeAccId);
     }
+  };
+
+  // Batch health diagnosis for all accounts
+  const handleBatchHealthCheck = async () => {
+    setIsBatchTesting(true);
+    const updated = [...accounts];
+
+    for (let i = 0; i < updated.length; i++) {
+      const acc = updated[i];
+      try {
+        const res = await onTestToken({
+          appId: acc.appId,
+          appSecret: acc.appSecret,
+          proxyUrl,
+        });
+        if (res.success) {
+          updated[i] = {
+            ...acc,
+            lastTestedAt: Date.now(),
+            lastTestStatus: 'ok',
+            lastTestMessage: res.message || 'Token 有效',
+          };
+        } else {
+          updated[i] = {
+            ...acc,
+            lastTestedAt: Date.now(),
+            lastTestStatus: 'fail',
+            lastTestMessage: res.error || '连接失败',
+          };
+        }
+      } catch (err: any) {
+        updated[i] = {
+          ...acc,
+          lastTestedAt: Date.now(),
+          lastTestStatus: 'fail',
+          lastTestMessage: err.message || '网络异常',
+        };
+      }
+    }
+
+    setAccounts(updated);
+    saveStoredAccounts(updated);
+    setIsBatchTesting(false);
+    onAccountsChange?.(updated, activeAccId);
+  };
+
+  // Export account configs
+  const handleExportAccounts = () => {
+    const jsonStr = exportAccountsBackupJson(accounts, false);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wechat-accounts-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import account configs
+  const handleImportAccounts = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const res = importAccountsFromJson(text);
+      if (res.success) {
+        const nextList = getStoredAccounts();
+        setAccounts(nextList);
+        onAccountsChange?.(nextList, activeAccId);
+        alert(`成功导入 ${res.count} 个公众号账号配置！`);
+      } else {
+        alert(`导入失败: ${res.error}`);
+      }
+    };
+    input.click();
   };
 
   const handleReload = async () => {
@@ -190,18 +289,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-750 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-850">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-950/80 text-amber-400 border border-amber-800/60 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-amber-950/80 text-amber-400 border border-amber-800/60 flex items-center justify-center">
               <Key className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-neutral-100">微信公众号接口与多账号切换</h3>
+              <h3 className="text-sm font-semibold text-neutral-100">公众号接口凭据与矩阵账号管理</h3>
               <p className="text-[11px] text-neutral-400">
-                配置 AppID / AppSecret 用于自动上传素材、草稿发布与多账号矩阵管理
+                支持管理订阅号、服务号与测试号，具备健康体检与安全导入导出备份
               </p>
             </div>
           </div>
@@ -214,36 +313,69 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-5 border-b border-neutral-800 bg-neutral-900/60 flex items-center space-x-4 text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => setActiveTab('current')}
-            className={`py-2.5 flex items-center space-x-1.5 border-b-2 transition ${
-              activeTab === 'current'
-                ? 'border-emerald-500 text-emerald-400 font-semibold'
-                : 'border-transparent text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Key className="w-3.5 h-3.5" />
-            <span>当前凭据配置</span>
-          </button>
+        <div className="px-5 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between text-xs font-medium">
+          <div className="flex items-center space-x-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('current')}
+              className={`py-2.5 flex items-center space-x-1.5 border-b-2 transition ${
+                activeTab === 'current'
+                  ? 'border-emerald-500 text-emerald-400 font-semibold'
+                  : 'border-transparent text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>当前凭据与网络设置</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('accounts')}
-            className={`py-2.5 flex items-center space-x-1.5 border-b-2 transition ${
-              activeTab === 'accounts'
-                ? 'border-emerald-500 text-emerald-400 font-semibold'
-                : 'border-transparent text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>多公众号账号管理 ({accounts.length})</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('accounts')}
+              className={`py-2.5 flex items-center space-x-1.5 border-b-2 transition ${
+                activeTab === 'accounts'
+                  ? 'border-emerald-500 text-emerald-400 font-semibold'
+                  : 'border-transparent text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>矩阵账号档案 ({accounts.length})</span>
+            </button>
+          </div>
+
+          {activeTab === 'accounts' && (
+            <div className="flex items-center gap-1.5 py-1">
+              <button
+                type="button"
+                onClick={handleBatchHealthCheck}
+                disabled={isBatchTesting}
+                className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 text-[11px] font-medium border border-neutral-700 flex items-center gap-1 transition"
+                title="批量测试所有账号 Token 连通性"
+              >
+                {isBatchTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3 text-emerald-400" />}
+                <span>一键体检</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportAccounts}
+                className="p-1 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-400 hover:text-neutral-200 transition"
+                title="导出账号配置备份 (JSON)"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleImportAccounts}
+                className="p-1 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-400 hover:text-neutral-200 transition"
+                title="从 JSON 文件导入账号"
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 space-y-4 text-xs overflow-y-auto max-h-[60vh]">
+        <div className="p-5 space-y-4 text-xs overflow-y-auto max-h-[64vh]">
           {activeTab === 'current' && (
             <>
               {/* App ID */}
@@ -320,7 +452,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-3 bg-neutral-850 rounded-xl border border-neutral-800 space-y-2 text-neutral-400">
                 <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
                   <ShieldAlert className="w-4 h-4 text-amber-400" />
-                  关键提示：配置 IP 白名单 (常见 40164 报错)
+                  关键安全提示：配置 IP 白名单 (防止 40164 报错)
                 </div>
                 <p className="text-[11px] leading-relaxed">
                   微信接口严格要求调用方 IP 处于公众平台白名单中。请登录微信公众平台后台，进入「设置与开发」➡️「基本配置」➡️「IP 白名单」，将当前环境公网 IP 填入保存。
@@ -334,6 +466,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   登录微信公众平台后台 <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
+
               {/* Persistence notice */}
               <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/20 border border-emerald-900/40 rounded-lg text-[11px] text-emerald-400">
                 <Info className="w-3.5 h-3.5 flex-shrink-0" />
@@ -346,9 +479,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-semibold text-neutral-200 text-xs">已保存的公众号账号列表</h4>
+                  <h4 className="font-semibold text-neutral-200 text-xs">公众号账号矩阵列表</h4>
                   <p className="text-[11px] text-neutral-400 mt-0.5">
-                    保存多个订阅号、服务号与测试号，顶栏支持一键下拉无缝切换。
+                    管理全网微信公众号资产，支持分组标签、Token 健康体检与一键切换。
                   </p>
                 </div>
                 <button
@@ -363,16 +496,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Add Account Inline Form */}
               {showAddForm && (
-                <div className="p-3.5 bg-neutral-850 rounded-xl border border-neutral-750 space-y-2.5">
-                  <div className="font-semibold text-neutral-200 text-xs">新建公众号凭据配置</div>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="p-4 bg-neutral-850 rounded-xl border border-neutral-750 space-y-3">
+                  <div className="font-semibold text-neutral-200 text-xs">录入新公众号凭据配置</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <div>
-                      <label className="text-[11px] text-neutral-400 block mb-1">账号备注名 (如: 极客周刊)</label>
+                      <label className="text-[11px] text-neutral-400 block mb-1">账号名称 (如: 极客周刊)</label>
                       <input
                         type="text"
                         value={newAccName}
                         onChange={(e) => setNewAccName(e.target.value)}
-                        placeholder="例如: 科技前沿订阅号"
+                        placeholder="科技前沿订阅号"
                         className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100"
                       />
                     </div>
@@ -388,27 +521,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <option value="test">开发者测试号</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="text-[11px] text-neutral-400 block mb-1">矩阵分组标签</label>
+                      <select
+                        value={newAccTag}
+                        onChange={(e) => setNewAccTag(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100"
+                      >
+                        <option value="主号·技术深耕">主号·技术深耕</option>
+                        <option value="副号·职场生活">副号·职场生活</option>
+                        <option value="矩阵·商业资讯">矩阵·商业资讯</option>
+                        <option value="测试·排版演练">测试·排版演练</option>
+                      </select>
+                    </div>
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[11px] text-neutral-400 block mb-1">AppID</label>
+                      <input
+                        type="text"
+                        value={newAccAppId}
+                        onChange={(e) => setNewAccAppId(e.target.value)}
+                        placeholder="wx..."
+                        className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-neutral-400 block mb-1">AppSecret (可选，用于自动推送)</label>
+                      <input
+                        type="password"
+                        value={newAccSecret}
+                        onChange={(e) => setNewAccSecret(e.target.value)}
+                        placeholder="32位AppSecret秘钥"
+                        className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100 font-mono"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-[11px] text-neutral-400 block mb-1">AppID</label>
+                    <label className="text-[11px] text-neutral-400 block mb-1">运营备忘说明 (可选)</label>
                     <input
                       type="text"
-                      value={newAccAppId}
-                      onChange={(e) => setNewAccAppId(e.target.value)}
-                      placeholder="wx..."
-                      className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100 font-mono"
+                      value={newAccNotes}
+                      onChange={(e) => setNewAccNotes(e.target.value)}
+                      placeholder="例如: 每日早8点发文，读者主要为一线城市工程师"
+                      className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100"
                     />
                   </div>
-                  <div>
-                    <label className="text-[11px] text-neutral-400 block mb-1">AppSecret</label>
-                    <input
-                      type="password"
-                      value={newAccSecret}
-                      onChange={(e) => setNewAccSecret(e.target.value)}
-                      placeholder="32位AppSecret秘钥"
-                      className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-xs text-neutral-100 font-mono"
-                    />
-                  </div>
+
                   <div className="flex justify-end space-x-2 pt-1">
                     <button
                       type="button"
@@ -422,7 +583,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={handleAddAccount}
                       className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold"
                     >
-                      保存并加入
+                      保存并加入矩阵
                     </button>
                   </div>
                 </div>
@@ -435,43 +596,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   return (
                     <div
                       key={acc.id}
-                      className={`p-3 rounded-xl border transition flex items-center justify-between ${
+                      className={`p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                         isActive
-                          ? 'bg-emerald-950/30 border-emerald-800'
-                          : 'bg-neutral-850 border-neutral-800'
+                          ? 'bg-emerald-950/30 border-emerald-800 ring-1 ring-emerald-500/30'
+                          : 'bg-neutral-850 border-neutral-800 hover:border-neutral-700'
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-neutral-200 text-xs">{acc.name}</span>
-                          <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                            acc.accountType === 'service'
-                              ? 'bg-blue-950 text-blue-300 border border-blue-800'
-                              : acc.accountType === 'test'
-                              ? 'bg-purple-950 text-purple-300 border border-purple-800'
-                              : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                          }`}>
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-neutral-100 text-xs">{acc.name}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-medium ${
+                              acc.accountType === 'service'
+                                ? 'bg-blue-950 text-blue-300 border border-blue-800'
+                                : acc.accountType === 'test'
+                                ? 'bg-purple-950 text-purple-300 border border-purple-800'
+                                : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                            }`}
+                          >
                             {acc.accountType === 'service' ? '服务号' : acc.accountType === 'test' ? '测试号' : '订阅号'}
                           </span>
+                          {acc.tag && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 border border-neutral-700">
+                              {acc.tag}
+                            </span>
+                          )}
                           {isActive && (
                             <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-600 text-white font-bold flex items-center gap-0.5">
-                              <Check className="w-2.5 h-2.5" /> 当前激活
+                              <Check className="w-2.5 h-2.5" /> 当前目标
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] font-mono text-neutral-500">
-                          AppID: {acc.appId} {acc.appSecret ? '• [含Secret]' : ''}
+
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-400 font-mono">
+                          <span>AppID: {acc.appId}</span>
+                          <span>{acc.appSecret ? '• [已设Secret]' : '• [免Secret模式]'}</span>
+                          {acc.lastTestStatus && (
+                            <span
+                              className={`flex items-center gap-1 ${
+                                acc.lastTestStatus === 'ok' ? 'text-emerald-400' : 'text-rose-400'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  acc.lastTestStatus === 'ok' ? 'bg-emerald-400' : 'bg-rose-400'
+                                }`}
+                              />
+                              {acc.lastTestStatus === 'ok' ? '连通正常' : '连通异常'}
+                            </span>
+                          )}
                         </div>
+
+                        {acc.notes && (
+                          <div className="text-[11px] text-neutral-500 italic">
+                            备忘: {acc.notes}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 shrink-0">
                         {!isActive && (
                           <button
                             type="button"
                             onClick={() => handleSwitchAccount(acc)}
                             className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded text-xs transition"
                           >
-                            设为当前目标
+                            设为发布目标
                           </button>
                         )}
                         <button
@@ -500,7 +690,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium text-xs border border-neutral-700 transition disabled:opacity-50"
             >
               {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
-              <span>测试凭据连接</span>
+              <span>测试当前凭据</span>
             </button>
 
             {onReloadConfig && (
@@ -521,7 +711,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={onClose}
               className="px-3.5 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium text-xs transition"
             >
-              取消
+              关闭
             </button>
             <button
               onClick={handleSave}
@@ -529,7 +719,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition disabled:opacity-50"
             >
               {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>保存配置</span>
+              <span>保存当前配置</span>
             </button>
           </div>
         </div>
