@@ -280,13 +280,101 @@ export function diagnoseHeadline(title: string): HeadlineDiagnosticResult {
 }
 
 /**
+ * 从可能已被各种爆款公式包裹的标题中，精准提取干净的核心主题词与主体
+ * 避免重复点击“诊断分析”或套用公式时发生标题层叠嵌套 (Recursive Stacking)
+ */
+export function extractCoreTopic(inputTitle: string): { topic: string; keyword: string } {
+  if (!inputTitle || !inputTitle.trim()) {
+    return { topic: '微信公众号自动化发布', keyword: '公众号运营' };
+  }
+
+  let text = inputTitle.trim();
+
+  // 1. 如果包含书名号《...》或双括号【...】，优先提取最内层的核心书名/主题
+  const innerBookMatches = text.match(/《([^》]+)》/g);
+  if (innerBookMatches && innerBookMatches.length > 0) {
+    const lastMatch = innerBookMatches[innerBookMatches.length - 1].replace(/[《》]/g, '').trim();
+    if (lastMatch.length >= 2 && lastMatch.length <= 30) {
+      text = lastMatch;
+    }
+  }
+
+  // 2. 剥离常见的公式前缀（涵盖 6 大体系公式及常见自媒体模板套路）
+  const prefixPatterns = [
+    /^\d+\s*个立竿见影的技巧[，,]让你的[《]?/i,
+    /^耗时\s*\d+\s*天实测整理[：:]关于/i,
+    /^千万别再乱发了[！!]\s*\d+%?\s*自媒体人都踩过的/i,
+    /^为什么你的/i,
+    /^为什么一线顶流大号[，,]都在悄悄弃用传统的/i,
+    /^真相大白[：:]关于/i,
+    /^【[^】]+】(工业级)?/i,
+    /^大厂内参拆解[：:]顶级团队是如何系统化做/i,
+    /^进入存量博弈时代[，,]真正决定/i,
+    /^别再把时间浪费在低质排版上了[：:]谈谈/i,
+    /^从零开始到全网矩阵百万曝光[：:]我摸爬滚打得出的/i,
+    /^熬夜写下的复盘实录[：:]做/i,
+  ];
+
+  for (const pattern of prefixPatterns) {
+    text = text.replace(pattern, '');
+  }
+
+  // 3. 剥离常见的公式后缀
+  const suffixPatterns = [
+    /[》]?效率提升\s*\d+\s*倍$/i,
+    /的\s*\d+\s*大核心实战经验$/i,
+    /严重误区$/i,
+    /总是阅读惨淡[？?].*?$/i,
+    /全流程完整闭环指南$/i,
+    /的[？?]$/i,
+    /[，,]绝大多数人从第一天就理解错了$/i,
+    /成败的从来不是更新频率$/i,
+    /的降维思考$/i,
+    /实录$/i,
+    /这一年[，,]我学到的血泪教训$/i,
+  ];
+
+  for (const pattern of suffixPatterns) {
+    text = text.replace(pattern, '');
+  }
+
+  // 清洗残余的书名号、括号、冒号与首尾标点
+  let topic = text.replace(/[《》【】「」]/g, '').trim();
+  topic = topic.replace(/^[:：·—\s\-]+/, '').replace(/[:：·—\s\-]+$/, '');
+
+  if (!topic || topic.length < 2) {
+    topic = '微信公众号自动化发布';
+  }
+
+  // 限制最大长度以防过长失焦
+  if (topic.length > 24) {
+    topic = topic.slice(0, 24);
+  }
+
+  // 提取关键词：优先截取 2~8 个字符的有效词，过滤纯数字或单一符号
+  let keyword = topic;
+  const parts = topic.split(/[:：·—\s]/);
+  for (const part of parts) {
+    const trimmedPart = part.trim();
+    if (trimmedPart.length >= 2 && !/^\d+$/.test(trimmedPart)) {
+      keyword = trimmedPart.slice(0, 8);
+      break;
+    }
+  }
+  if (!keyword || /^\d+$/.test(keyword)) {
+    keyword = topic.slice(0, 8);
+  }
+
+  return { topic, keyword };
+}
+
+/**
  * 爆款标题 6 大体系公式生成器
  * 基于当前标题、摘要或核心关键词自动派生
  */
 export function generateViralHeadlines(baseTitle: string, digest: string = ''): ViralTitleTemplate[] {
-  const cleanTitle = baseTitle.replace(/[《》【】]/g, '').trim() || '微信公众号自动化发布';
-  const keyword = cleanTitle.split(/[:：·—\s]/)[0] || cleanTitle.slice(0, 8);
-  const subIdea = digest.slice(0, 16) || '排版分发全流程';
+  const { topic: cleanTitle, keyword } = extractCoreTopic(baseTitle);
+  const subIdea = digest ? digest.replace(/[《》【】]/g, '').slice(0, 16) : '排版分发全流程';
 
   return [
     // 1. 数字利益型

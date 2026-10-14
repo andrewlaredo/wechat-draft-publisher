@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Sparkles,
@@ -23,6 +23,7 @@ import {
 import {
   diagnoseHeadline,
   generateViralHeadlines,
+  extractCoreTopic,
   getVisualCharWeight,
   ViralTitleTemplate,
   HeadlineDiagnosticResult,
@@ -49,6 +50,9 @@ export const HeadlineLabModal: React.FC<HeadlineLabModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'diagnostic' | 'formulas' | 'ab_test'>('diagnostic');
   const [testTitle, setTestTitle] = useState<string>(initialTitle || '');
+  const [topicSeed, setTopicSeed] = useState<string>(() => {
+    return extractCoreTopic(initialTitle || '').topic;
+  });
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [savedFavorites, setSavedFavorites] = useState<string[]>(() => {
     try {
@@ -58,15 +62,31 @@ export const HeadlineLabModal: React.FC<HeadlineLabModalProps> = ({
     }
   });
 
+  // Keep testTitle and topicSeed in sync when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setTestTitle(initialTitle || '');
+      const extracted = extractCoreTopic(initialTitle || '').topic;
+      if (extracted) {
+        setTopicSeed(extracted);
+      }
+    }
+  }, [isOpen, initialTitle]);
+
   // Diagnostic result
   const diagnosis: HeadlineDiagnosticResult = useMemo(() => {
     return diagnoseHeadline(testTitle);
   }, [testTitle]);
 
-  // Viral formulas
+  // Viral formulas - derived cleanly from topicSeed to prevent recursive nesting/stacking
   const viralFormulas = useMemo(() => {
-    return generateViralHeadlines(testTitle || initialTitle, digest);
-  }, [testTitle, initialTitle, digest]);
+    return generateViralHeadlines(topicSeed || testTitle || initialTitle, digest);
+  }, [topicSeed, testTitle, initialTitle, digest]);
+
+  const handleInspectTitle = (titleToInspect: string) => {
+    setTestTitle(titleToInspect);
+    setActiveTab('diagnostic');
+  };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -440,16 +460,45 @@ export const HeadlineLabModal: React.FC<HeadlineLabModalProps> = ({
           {/* TAB 2: 6 大爆款标题公式库 */}
           {activeTab === 'formulas' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-neutral-800">
                 <div>
                   <h3 className="text-sm font-bold text-neutral-200 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>基于当前主题生成的 6 大经典爆款标题体系</span>
+                    <span>基于核心主题生成的 6 大经典爆款标题体系</span>
                   </h3>
                   <p className="text-xs text-neutral-400 mt-0.5">
                     涵盖数字利益、痛点避坑、好奇悬念、权威背书、认知重塑与第一人称故事
                   </p>
                 </div>
+              </div>
+
+              {/* 核心主题输入与提纯控制栏 (防止嵌套叠加) */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-neutral-950/70 border border-neutral-800">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-xs font-semibold text-neutral-300 whitespace-nowrap flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                    <span>当前公式衍生核心主题：</span>
+                  </span>
+                  <input
+                    type="text"
+                    value={topicSeed}
+                    onChange={(e) => setTopicSeed(e.target.value)}
+                    placeholder="输入主题关键词（如：微信自动化排版、副业变现）..."
+                    className="bg-neutral-900 text-amber-300 text-xs px-3 py-1.5 rounded-lg border border-neutral-700 focus:outline-none focus:border-amber-500 flex-1 font-medium"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const { topic } = extractCoreTopic(testTitle);
+                    setTopicSeed(topic);
+                  }}
+                  className="text-[11px] text-neutral-300 hover:text-neutral-100 px-3 py-1.5 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 whitespace-nowrap flex items-center justify-center gap-1.5 transition"
+                  title="从当前输入的测试标题中自动提纯提取纯净核心主题，拒绝套壳叠加"
+                >
+                  <RefreshCw className="w-3 h-3 text-amber-400" />
+                  <span>提纯提取主题</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -498,11 +547,12 @@ export const HeadlineLabModal: React.FC<HeadlineLabModalProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setTestTitle(tpl.title)}
-                          className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700 text-xs transition"
-                          title="将此标题放入诊断框进行三端截断模拟"
+                          onClick={() => handleInspectTitle(tpl.title)}
+                          className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs transition flex items-center gap-1 hover:border-amber-600/70"
+                          title="将此标题载入诊断框并立即进入三端截断模拟分析"
                         >
-                          诊断分析
+                          <Eye className="w-3 h-3 text-amber-400" />
+                          <span>诊断分析</span>
                         </button>
                       </div>
 
@@ -587,10 +637,12 @@ export const HeadlineLabModal: React.FC<HeadlineLabModalProps> = ({
                       <div className="flex items-center space-x-2 shrink-0">
                         <button
                           type="button"
-                          onClick={() => setTestTitle(fav)}
-                          className="px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 text-xs border border-neutral-700 transition"
+                          onClick={() => handleInspectTitle(fav)}
+                          className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 text-xs border border-neutral-700 transition flex items-center gap-1 hover:border-amber-600/70"
+                          title="放入诊断框并立即查看三端截断模拟"
                         >
-                          放入诊断
+                          <Eye className="w-3 h-3 text-amber-400" />
+                          <span>放入诊断</span>
                         </button>
                         <button
                           type="button"
