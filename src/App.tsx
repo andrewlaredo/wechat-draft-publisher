@@ -21,7 +21,28 @@ import { LongImageExportModal } from './components/LongImageExportModal.tsx';
 import { SafetyAuditModal } from './components/SafetyAuditModal.tsx';
 import { CoverDesignerModal } from './components/CoverDesignerModal.tsx';
 import { InteractiveComponentsModal } from './components/InteractiveComponentsModal.tsx';
+import { HeadlineLabModal } from './components/HeadlineLabModal.tsx';
+import { CommandPaletteModal, CommandItem } from './components/CommandPaletteModal.tsx';
+import { EditorialCalendarModal } from './components/EditorialCalendarModal.tsx';
 import { performSafetyAudit } from './utils/safetyAudit.ts';
+import { upsertEditorialTask, EditorialTask } from './utils/editorialManager.ts';
+import {
+  Send,
+  Sparkles,
+  Palette,
+  ShieldCheck,
+  Flame,
+  Calendar,
+  Share2,
+  FileImage,
+  Inbox,
+  Settings as SettingsIcon,
+  HelpCircle,
+  Eye,
+  Minimize2,
+  Layers,
+  DownloadCloud,
+} from 'lucide-react';
 import {
   WeChatAccountConfig,
   getStoredAccounts,
@@ -273,6 +294,9 @@ export default function App() {
   const [isSafetyAuditOpen, setIsSafetyAuditOpen] = useState<boolean>(false);
   const [isCoverDesignerOpen, setIsCoverDesignerOpen] = useState<boolean>(false);
   const [isInteractiveComponentsOpen, setIsInteractiveComponentsOpen] = useState<boolean>(false);
+  const [isHeadlineLabOpen, setIsHeadlineLabOpen] = useState<boolean>(false);
+  const [isEditorialCalendarOpen, setIsEditorialCalendarOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -703,6 +727,24 @@ export default function App() {
         setPublishResult(res.data.result);
         setPublishLogs(res.data.logs || []);
         fetchHistory(); // Refresh history cache
+
+        // Auto-sync into editorial manager asset archive
+        upsertEditorialTask({
+          title: metadata.title,
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
+          accountId: currentTargetAccount?.id || 'default',
+          accountName: currentTargetAccount?.name || '主号公众号',
+          accountTag: currentTargetAccount?.tag || '主号',
+          status: dryRun ? 'drafted' : 'published',
+          category: 'tech',
+          markdown,
+          digest: metadata.digest,
+          coverUrl: metadata.cover,
+          mediaId: res.data.result?.media_id,
+          targetPlatforms: ['微信公众号'],
+          wordCount: markdown.length,
+        });
       } else {
         setPublishError(res.data?.error || res.error || '推送草稿箱失败');
         if (res.data?.logs) setPublishLogs(res.data.logs);
@@ -829,11 +871,191 @@ export default function App() {
         setIsHelpGuideOpen((prev) => !prev);
         return;
       }
+
+      // 5. Ctrl / Cmd + K -> Global Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleExportMarkdown, executePublish, handleCopyWeChatHtml, showToast]);
+
+  // Load an editorial task into the editor
+  const handleLoadTaskIntoEditor = (task: EditorialTask) => {
+    if (task.markdown) {
+      setMarkdown(task.markdown);
+    }
+    setMetadata((prev) => ({
+      ...prev,
+      title: task.title || prev.title,
+      digest: task.digest || prev.digest,
+      cover: task.coverUrl || prev.cover,
+    }));
+    showToast(`📑 已成功载入排期文章《${task.title}》！`);
+  };
+
+  // Commands definition for Global Command Palette (Cmd+K)
+  const commandList: CommandItem[] = useMemo(() => [
+    {
+      id: 'cmd-publish',
+      title: '推送至微信公众号草稿箱',
+      subtitle: '自动内联富文本样式、无损压缩配图并直推微信官方草稿箱',
+      category: 'publish',
+      icon: <Send className="w-4 h-4 text-emerald-400" />,
+      shortcut: '⌘P',
+      keywords: ['发布', '草稿', '推送', 'publish', 'draft', 'wechat'],
+      action: () => handlePublishClick(false),
+    },
+    {
+      id: 'cmd-dryrun',
+      title: '推演测试发布 (Dry Run 预检)',
+      subtitle: '无需微信凭据，本地模拟完整流水线、样式检查与素材校验',
+      category: 'publish',
+      icon: <Send className="w-4 h-4 text-amber-400" />,
+      shortcut: '⌘↵',
+      keywords: ['试运行', '演练', '推演', 'dryrun', 'test'],
+      action: () => executePublish(true),
+    },
+    {
+      id: 'cmd-matrix',
+      title: '多平台内容矩阵一键分发',
+      subtitle: '一键将文章适配并分发到知乎、掘金、CSDN、小红书等 9 大平台',
+      category: 'publish',
+      icon: <Share2 className="w-4 h-4 text-indigo-400" />,
+      keywords: ['矩阵', '知乎', '掘金', 'csdn', '小红书', '分发', 'matrix'],
+      action: () => setIsMatrixPublishOpen(true),
+    },
+    {
+      id: 'cmd-safety',
+      title: '内容合规安全体检 (广告法与防封扫描)',
+      subtitle: '新广告法极限词、诱导分享违规检测与一键合规修复',
+      category: 'publish',
+      icon: <ShieldCheck className="w-4 h-4 text-emerald-400" />,
+      keywords: ['体检', '违禁词', '广告法', '安全', '合规', 'safety', 'audit'],
+      action: () => setIsSafetyAuditOpen(true),
+    },
+    {
+      id: 'cmd-headline',
+      title: '爆款标题实验室与微信列表截断诊断',
+      subtitle: '微信订阅号常读流、对话转发与朋友圈卡片截断实时诊断与公式派生',
+      category: 'operation',
+      icon: <Flame className="w-4 h-4 text-orange-400" />,
+      keywords: ['标题', '爆款', '截断', '点击率', 'headline', 'title'],
+      action: () => setIsHeadlineLabOpen(true),
+    },
+    {
+      id: 'cmd-calendar',
+      title: '运营日历与发文资产档案管理',
+      subtitle: '甘特排期、发文资产台账沉淀、数据看板与 CSV 导出',
+      category: 'operation',
+      icon: <Calendar className="w-4 h-4 text-blue-400" />,
+      keywords: ['日历', '排期', '资产', '统计', '复盘', 'calendar', 'schedule'],
+      action: () => setIsEditorialCalendarOpen(true),
+    },
+    {
+      id: 'cmd-cover',
+      title: '微信封面图设计工坊 (2.35:1 标准)',
+      subtitle: '大厂爆款封面模板，带微信安全区辅助线，一键应用或导出',
+      category: 'visual',
+      icon: <Palette className="w-4 h-4 text-rose-400" />,
+      keywords: ['封面', '设计', '配图', '安全区', 'cover', 'design'],
+      action: () => setIsCoverDesignerOpen(true),
+    },
+    {
+      id: 'cmd-components',
+      title: '微信爆款排版组件物料库',
+      subtitle: '金句框、微信对话气泡、步骤条、折叠答疑等 18+ 款高转化视觉物料',
+      category: 'visual',
+      icon: <Sparkles className="w-4 h-4 text-amber-400" />,
+      keywords: ['物料', '组件', '气泡', '金句', '对话', 'components', 'material'],
+      action: () => setIsInteractiveComponentsOpen(true),
+    },
+    {
+      id: 'cmd-longimage',
+      title: '导出排版长图',
+      subtitle: '生成高清长图卡片海报，便于手机保存与全平台传播',
+      category: 'visual',
+      icon: <FileImage className="w-4 h-4 text-amber-400" />,
+      keywords: ['长图', '海报', 'export', 'image'],
+      action: () => setIsLongImageExportOpen(true),
+    },
+    {
+      id: 'cmd-extract',
+      title: '微信线上文章一键逆向提取',
+      subtitle: '粘贴公开微信文章链接，自动抓取图文并逆向清洗为 Markdown',
+      category: 'visual',
+      icon: <DownloadCloud className="w-4 h-4 text-blue-400" />,
+      keywords: ['提取', '抓取', '导入', 'extract', 'reverse'],
+      action: () => setIsExtractArticleOpen(true),
+    },
+    {
+      id: 'cmd-theme-designer',
+      title: '自定义 CSS / 主题设计器',
+      subtitle: '调整专属品牌色彩体系、字号行高与字间距',
+      category: 'format',
+      icon: <Palette className="w-4 h-4 text-purple-400" />,
+      keywords: ['主题', '设计', 'css', 'style', 'color'],
+      action: () => setIsThemeDesignerOpen(true),
+    },
+    {
+      id: 'cmd-multi-article',
+      title: '多图文合集拖拽编排工作台',
+      subtitle: '最多编排 8 篇图文消息，支持拖拽调整头条与次条顺序',
+      category: 'format',
+      icon: <Layers className="w-4 h-4 text-blue-400" />,
+      keywords: ['多图文', '合集', '次条', '头条', 'multi'],
+      action: () => setIsMultiArticleOpen(true),
+    },
+    {
+      id: 'cmd-drafts',
+      title: '微信官方草稿箱与群发管理',
+      subtitle: '查看已推送草稿列表、一键正式群发 (FreePublish) 与素材库',
+      category: 'operation',
+      icon: <Inbox className="w-4 h-4 text-blue-400" />,
+      keywords: ['草稿箱', '群发', '发布历史', '素材', 'drafts', 'freepublish'],
+      action: () => setIsDraftManagerOpen(true),
+    },
+    {
+      id: 'cmd-ai',
+      title: 'Gemini AI 智能爆款文章生成',
+      subtitle: '输入灵感主题，根据微信爆款模板一键创作万字深度图文',
+      category: 'operation',
+      icon: <Sparkles className="w-4 h-4 text-purple-400" />,
+      keywords: ['ai', '生成', '写文章', 'gemini', 'gpt'],
+      action: () => setIsAiModalOpen(true),
+    },
+    {
+      id: 'cmd-zen',
+      title: isZenMode ? '退出禅模式 (恢复双栏预览)' : '开启禅模式 (全屏沉浸专注编辑)',
+      subtitle: '隐藏右侧手机模拟器与侧栏，专注于灵感码字',
+      category: 'view',
+      icon: isZenMode ? <Minimize2 className="w-4 h-4 text-neutral-400" /> : <Eye className="w-4 h-4 text-neutral-400" />,
+      keywords: ['禅模式', '专注', '全屏', 'zen', 'focus'],
+      action: () => setIsZenMode((prev) => !prev),
+    },
+    {
+      id: 'cmd-settings',
+      title: '凭据配置与多账号管理',
+      subtitle: '微信 AppID/Secret 管理、多账号标签矩阵、批量连通性体检',
+      category: 'view',
+      icon: <SettingsIcon className="w-4 h-4 text-neutral-400" />,
+      keywords: ['设置', '配置', '账号', '凭据', 'settings', 'appid'],
+      action: () => setIsSettingsOpen(true),
+    },
+    {
+      id: 'cmd-help',
+      title: '使用帮助手册与发布避坑规范',
+      subtitle: '草稿箱 API 白名单设置、图片防重复上传机制与常见问题',
+      category: 'view',
+      icon: <HelpCircle className="w-4 h-4 text-neutral-400" />,
+      keywords: ['帮助', '手册', '教程', 'help', 'guide'],
+      action: () => setIsHelpGuideOpen(true),
+    },
+  ], [isZenMode]);
 
   const currentThemeObj = THEME_OPTIONS.find((t) => t.id === activeTheme) || THEME_OPTIONS[0];
 
@@ -855,6 +1077,9 @@ export default function App() {
         onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
         onOpenSafetyAudit={() => setIsSafetyAuditOpen(true)}
         onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
+        onOpenHeadlineLab={() => setIsHeadlineLabOpen(true)}
+        onOpenEditorialCalendar={() => setIsEditorialCalendarOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -898,6 +1123,9 @@ export default function App() {
         safetyScore={safetyReport.score}
         onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
         onOpenInteractiveComponents={() => setIsInteractiveComponentsOpen(true)}
+        onOpenHeadlineLab={() => setIsHeadlineLabOpen(true)}
+        onOpenEditorialCalendar={() => setIsEditorialCalendarOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -1188,6 +1416,42 @@ export default function App() {
           setMarkdown((prev) => `${prev.trim()}\n\n${template.trim()}\n\n`);
           showToast(`✨ 已成功插入排版物料「${name}」！`);
         }}
+      />
+
+      {/* Viral Headline Lab & WeChat Truncation Diagnostic Modal */}
+      <HeadlineLabModal
+        isOpen={isHeadlineLabOpen}
+        onClose={() => setIsHeadlineLabOpen(false)}
+        currentTitle={metadata.title}
+        author={metadata.author}
+        digest={metadata.digest}
+        coverUrl={metadata.cover}
+        onApplyTitle={(newTitle) => {
+          setMetadata((prev) => ({ ...prev, title: newTitle }));
+          showToast(`🔥 已成功采用爆款标题：《${newTitle}》！`);
+        }}
+      />
+
+      {/* Editorial Calendar & Publishing Asset Archive Management Modal */}
+      <EditorialCalendarModal
+        isOpen={isEditorialCalendarOpen}
+        onClose={() => setIsEditorialCalendarOpen(false)}
+        accounts={accounts}
+        currentEditorArticle={{
+          title: metadata.title,
+          author: metadata.author,
+          markdown,
+          digest: metadata.digest,
+          cover: metadata.cover,
+        }}
+        onLoadTaskIntoEditor={handleLoadTaskIntoEditor}
+      />
+
+      {/* Global Command Palette Modal (Cmd+K / Ctrl+K) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        commands={commandList}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}

@@ -20,6 +20,9 @@ import {
   FileImage,
   ShieldCheck,
   Palette,
+  Flame,
+  Calendar,
+  Command,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -38,6 +41,9 @@ interface HeaderProps {
   onOpenLongImageExport?: () => void;
   onOpenSafetyAudit?: () => void;
   onOpenCoverDesigner?: () => void;
+  onOpenHeadlineLab?: () => void;
+  onOpenEditorialCalendar?: () => void;
+  onOpenCommandPalette?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -61,6 +67,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLongImageExport,
   onOpenSafetyAudit,
   onOpenCoverDesigner,
+  onOpenHeadlineLab,
+  onOpenEditorialCalendar,
+  onOpenCommandPalette,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
@@ -107,6 +116,22 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Action Buttons (wrap on narrow screens so nothing gets clipped / unreachable) */}
       <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2 min-w-0 flex-1">
+        {/* Global Command Palette Trigger */}
+        {onOpenCommandPalette && (
+          <button
+            onClick={onOpenCommandPalette}
+            id="btn-header-command-palette"
+            className="flex items-center space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-850 hover:bg-neutral-800 text-neutral-300 border border-neutral-700/80 transition shadow-xs group"
+            title="全局指令面板与极速调度（快捷键: ⌘K 或 Ctrl+K）"
+          >
+            <Command className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+            <span className="hidden md:inline">搜索动作...</span>
+            <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-neutral-800 text-[10px] text-neutral-400 border border-neutral-700 font-mono">
+              ⌘K
+            </kbd>
+          </button>
+        )}
+
         {/* Copy Formatted HTML for WeChat direct paste */}
         <button
           onClick={onCopyHtml}
@@ -127,6 +152,34 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </button>
+
+        {/* Headline Lab Button */}
+        {onOpenHeadlineLab && (
+          <button
+            onClick={onOpenHeadlineLab}
+            id="btn-header-headline-lab"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-orange-300 border border-neutral-700 transition"
+            title="爆款标题实验室：实时微信列表截断诊断与 6 大体系公式生成"
+          >
+            <Flame className="w-3.5 h-3.5 text-orange-400" />
+            <span className="hidden xl:inline">爆款标题</span>
+            <span className="hidden sm:inline xl:hidden">标题</span>
+          </button>
+        )}
+
+        {/* Editorial Calendar Button */}
+        {onOpenEditorialCalendar && (
+          <button
+            onClick={onOpenEditorialCalendar}
+            id="btn-header-editorial-calendar"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-blue-300 border border-neutral-700 transition"
+            title="运营日历与发文资产档案管理：排期看板、资产复盘与数据看板"
+          >
+            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden xl:inline">运营日历</span>
+            <span className="hidden sm:inline xl:hidden">日历</span>
+          </button>
+        )}
 
         {/* Long Image Export Button */}
         {onOpenLongImageExport && (

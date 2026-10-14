@@ -13,6 +13,9 @@ import {
   Share2,
   FileImage,
   ShieldCheck,
+  Flame,
+  Calendar,
+  Command,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -43,6 +46,9 @@ interface ToolbarProps {
   safetyScore?: number;
   onOpenCoverDesigner?: () => void;
   onOpenInteractiveComponents?: () => void;
+  onOpenHeadlineLab?: () => void;
+  onOpenEditorialCalendar?: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -83,6 +89,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   safetyScore,
   onOpenCoverDesigner,
   onOpenInteractiveComponents,
+  onOpenHeadlineLab,
+  onOpenEditorialCalendar,
+  onOpenCommandPalette,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -279,6 +288,51 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       <Sparkles className="w-3 h-3 text-amber-400" />
                       <span className="hidden sm:inline">排版物料</span>
                       <span className="sm:hidden">物料</span>
+                    </button>
+                  )}
+
+                  {/* Open Viral Headline Lab */}
+                  {onOpenHeadlineLab && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-headline-lab"
+                      onClick={onOpenHeadlineLab}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-orange-300 hover:text-orange-200 border border-orange-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="爆款标题实验室：实时微信列表截断诊断与 6 大体系公式生成"
+                    >
+                      <Flame className="w-3 h-3 text-orange-400" />
+                      <span className="hidden sm:inline">爆款标题</span>
+                      <span className="sm:hidden">标题</span>
+                    </button>
+                  )}
+
+                  {/* Open Editorial Calendar */}
+                  {onOpenEditorialCalendar && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-editorial-calendar"
+                      onClick={onOpenEditorialCalendar}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-blue-300 hover:text-blue-200 border border-blue-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="运营日历与发文资产档案管理：甘特排期、资产复盘与数据看板"
+                    >
+                      <Calendar className="w-3 h-3 text-blue-400" />
+                      <span className="hidden sm:inline">运营日历</span>
+                      <span className="sm:hidden">日历</span>
+                    </button>
+                  )}
+
+                  {/* Open Global Command Palette */}
+                  {onOpenCommandPalette && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-command-palette"
+                      onClick={onOpenCommandPalette}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-white border border-neutral-700 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="全局指令面板 (快捷键: ⌘K 或 Ctrl+K)"
+                    >
+                      <Command className="w-3 h-3 text-amber-400" />
+                      <span className="hidden sm:inline">指令</span>
+                      <span className="px-1 py-0.2 rounded bg-neutral-750 text-[10px] text-neutral-400 border border-neutral-700 font-mono">⌘K</span>
                     </button>
                   )}
 
