@@ -19,6 +19,7 @@ import {
   DownloadCloud,
   FileImage,
   ShieldCheck,
+  Palette,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -36,6 +37,7 @@ interface HeaderProps {
   onOpenExtractArticle?: () => void;
   onOpenLongImageExport?: () => void;
   onOpenSafetyAudit?: () => void;
+  onOpenCoverDesigner?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -58,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenExtractArticle,
   onOpenLongImageExport,
   onOpenSafetyAudit,
+  onOpenCoverDesigner,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
@@ -136,6 +139,20 @@ export const Header: React.FC<HeaderProps> = ({
             <FileImage className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden xl:inline">长图导出</span>
             <span className="hidden sm:inline xl:hidden">长图</span>
+          </button>
+        )}
+
+        {/* Cover Designer Button */}
+        {onOpenCoverDesigner && (
+          <button
+            onClick={onOpenCoverDesigner}
+            id="btn-header-cover-designer"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-rose-300 border border-neutral-700 transition"
+            title="微信封面图设计工坊：自动根据标题合成 2.35:1 大封面，带微信安全区辅助线"
+          >
+            <Palette className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden xl:inline">封面工坊</span>
+            <span className="hidden sm:inline xl:hidden">封面</span>
           </button>
         )}
 

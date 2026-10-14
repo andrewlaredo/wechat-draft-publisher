@@ -33,6 +33,7 @@ import {
   X,
   ChevronRight,
   Eye,
+  Palette,
 } from 'lucide-react';
 import { ArticleMeta, PublishHistoryItem } from '../types/app.ts';
 import { wechatHtmlToMarkdown, isHtmlContent } from '../markdown/html2md.ts';
@@ -62,6 +63,7 @@ interface MarkdownEditorProps {
   onRefreshHistory?: () => void;
   isZenMode?: boolean;
   onToggleZenMode?: () => void;
+  onOpenCoverDesigner?: () => void;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -74,6 +76,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onRefreshHistory,
   isZenMode = false,
   onToggleZenMode,
+  onOpenCoverDesigner,
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'metadata' | 'images' | 'history'>('editor');
   const [cleanNotice, setCleanNotice] = useState<string | null>(null);
@@ -662,10 +665,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               type="button"
               onClick={() => setIsComponentsModalOpen(true)}
               className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-600/30 to-rose-600/30 hover:from-amber-600/50 hover:to-rose-600/50 text-amber-300 border border-amber-500/40 text-[11px] font-medium transition flex items-center space-x-1"
-              title="插入微信公众号专属特色互动组件"
+              title="插入微信爆款排版物料库（金句框、微信对话气泡、流程步骤条、导读名片）"
             >
               <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
-              <span>特色组件</span>
+              <span>排版物料</span>
             </button>
 
             <button
@@ -1005,9 +1008,22 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
             {/* Cover image */}
             <div>
-              <label className="block text-neutral-300 font-medium mb-1.5">
-                封面图路径或 URL (cover)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-neutral-300 font-medium text-xs">
+                  封面图路径或 URL (cover)
+                </label>
+                {onOpenCoverDesigner && (
+                  <button
+                    type="button"
+                    onClick={onOpenCoverDesigner}
+                    className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 font-medium transition"
+                    title="打开微信封面图设计工坊在线制作 2.35:1 大封面"
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>封面工坊在线制作</span>
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={metadata.cover || ''}

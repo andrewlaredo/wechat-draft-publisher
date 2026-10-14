@@ -41,6 +41,8 @@ interface ToolbarProps {
   onOpenLongImageExport?: () => void;
   onOpenSafetyAudit?: () => void;
   safetyScore?: number;
+  onOpenCoverDesigner?: () => void;
+  onOpenInteractiveComponents?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -79,6 +81,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenLongImageExport,
   onOpenSafetyAudit,
   safetyScore,
+  onOpenCoverDesigner,
+  onOpenInteractiveComponents,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -245,6 +249,36 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     >
                       <Palette className="w-3 h-3 text-rose-400" />
                       <span className="hidden sm:inline">设计主题</span>
+                    </button>
+                  )}
+
+                  {/* Open Cover Designer Button */}
+                  {onOpenCoverDesigner && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-cover-designer"
+                      onClick={onOpenCoverDesigner}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-rose-300 hover:text-rose-200 border border-rose-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="微信封面图设计工坊：自动根据标题合成 2.35:1 大封面，带微信安全区辅助线"
+                    >
+                      <Palette className="w-3 h-3 text-rose-400" />
+                      <span className="hidden sm:inline">封面工坊</span>
+                      <span className="sm:hidden">封面</span>
+                    </button>
+                  )}
+
+                  {/* Open Material Blocks Button */}
+                  {onOpenInteractiveComponents && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-interactive-components"
+                      onClick={onOpenInteractiveComponents}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-amber-300 hover:text-amber-200 border border-amber-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="微信爆款排版物料库：一键插入金句框、微信对话气泡、流程步骤条"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span className="hidden sm:inline">排版物料</span>
+                      <span className="sm:hidden">物料</span>
                     </button>
                   )}
 

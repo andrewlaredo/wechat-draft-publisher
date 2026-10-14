@@ -1,164 +1,478 @@
 /**
  * interactiveComponents.ts
- * 微信公众号专属特色互动排版组件库
- * 包含：
- * 1. 吸顶悬浮精华卡片 (Sticky Summary Card)
- * 2. 点击展开/折叠答疑 (Accordion FAQ Card)
- * 3. 左右手势滑动图集 (Horizontal Scroll Gallery)
- * 4. 引导关注/点赞在看卡片 (Call-to-Action Follow Card)
- * 5. 重点提炼高光卡片 (Key Highlights Card)
- * 6. 往期精选两列推荐 (Recommended Articles Card)
+ * 微信公众号爆款排版组件与视觉物料库 (Rich Visual Blocks & Material Library)
+ * 
+ * 所有组件均采用 100% 微信富文本内联样式（Inline CSS），
+ * 无论通过 Juice 自动化内联编译，还是直接复制到微信公众号网页后台，
+ * 均可实现零样式丢失、高保真矢量渲染、跨移动端与桌面端自适应。
  */
 
 export interface InteractiveComponentItem {
   id: string;
   name: string;
   description: string;
-  category: 'interaction' | 'card' | 'gallery' | 'guide';
+  category: 'quote' | 'step' | 'chat' | 'card' | 'guide' | 'interactive';
   icon: string;
+  tag: string;
   template: string;
   previewHtml: string;
 }
 
+export const INTERACTIVE_CATEGORIES = [
+  { id: 'all', name: '全部物料' },
+  { id: 'quote', name: '金句与重点强调' },
+  { id: 'step', name: '步骤条与对比卡' },
+  { id: 'chat', name: '微信对话气泡' },
+  { id: 'card', name: '导读与知识卡片' },
+  { id: 'guide', name: '文首文末互动' },
+  { id: 'interactive', name: '折叠答疑与画廊' },
+];
+
 export const INTERACTIVE_COMPONENTS: InteractiveComponentItem[] = [
+  // 1. 金句与重点强调 (Quote & Highlights)
+  {
+    id: 'gradient-quote-card',
+    name: '渐变微光金句框',
+    description: '科技大厂爆款金句框，带渐变边框与半透明背景，强化核心观点与格言',
+    category: 'quote',
+    icon: '✨',
+    tag: '爆款标配',
+    template: `<section style="margin: 24px 0; padding: 18px 20px; background: linear-gradient(135deg, rgba(30,128,255,0.06) 0%, rgba(139,92,246,0.06) 100%); border-left: 4px solid #1e80ff; border-radius: 0 12px 12px 0; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+  <div style="font-size: 26px; line-height: 1; color: #1e80ff; font-family: Georgia, serif; margin-bottom: 6px;">“</div>
+  <p style="margin: 0; font-size: 15px; line-height: 1.8; color: #1f2937; font-weight: 500; letter-spacing: 0.5px;">
+    优秀的自媒体创作者应当将时间倾注于深度思考与洞察，而将机械的排版与分发交由自动化流水线。
+  </p>
+  <div style="margin-top: 10px; font-size: 12px; color: #6b7280; text-align: right; font-style: italic;">
+    — 核心思考金句
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 12px 14px; background: linear-gradient(135deg, rgba(30,128,255,0.08), rgba(139,92,246,0.08)); border-left: 3px solid #1e80ff; border-radius: 0 8px 8px 0;"><span style="color: #1e80ff; font-size: 16px; font-weight: bold;">“</span><span style="font-size: 12px; color: #1f2937; margin-left: 4px;">优秀的自媒体创作者应当将时间倾注于深度思考...</span></div>`,
+  },
+  {
+    id: 'notion-paper-card',
+    name: '极简便签纸卡片',
+    description: '日系杂货/Notion 风格双层纸感便签卡，带微距阴影与细致边框',
+    category: 'quote',
+    icon: '📝',
+    tag: '文艺纸感',
+    template: `<section style="margin: 24px 0; padding: 16px 20px; background: #faf9f6; border: 1px solid #e7e5e4; border-radius: 10px; box-shadow: 2px 4px 12px rgba(0,0,0,0.04); position: relative;">
+  <div style="display: inline-block; padding: 2px 8px; background: #78716c; color: #ffffff; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 8px;">
+    📌 创作者备忘
+  </div>
+  <p style="margin: 0; font-size: 14px; line-height: 1.75; color: #44403c;">
+    微信公众平台官方草稿箱 API 对 HTML 代码总体积有 20,000 字符限制。建议长图文合理复用永久素材库已有 MediaID，减少内联代码膨胀。
+  </p>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 10px 14px; background: #faf9f6; border: 1px solid #e7e5e4; border-radius: 6px;"><span style="background: #78716c; color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 3px;">📌 备忘</span><div style="font-size: 11px; color: #44403c; margin-top: 4px;">微信草稿箱 API 具有 20k 字符限制...</div></div>`,
+  },
+  {
+    id: 'warning-callout',
+    name: '高危避坑警告卡',
+    description: '醒目的红橙色双色警示框，提示读者重点注意事项与常见踩坑点',
+    category: 'quote',
+    icon: '⚠️',
+    tag: '避坑必读',
+    template: `<section style="margin: 20px 0; padding: 14px 18px; background: #fef2f2; border: 1px solid #fecaca; border-left: 5px solid #ef4444; border-radius: 8px;">
+  <div style="font-size: 14px; font-weight: bold; color: #991b1b; display: flex; align-items: center; margin-bottom: 4px;">
+    ⚠️ 核心避坑风险提醒
+  </div>
+  <p style="margin: 0; font-size: 13px; line-height: 1.7; color: #7f1d1d;">
+    请切勿在正文中出现“转发朋友圈领取”、“点击在看送资料”等诱导分享惩罚词，否则文章极易被微信官方系统拦截或面临账号阶梯降权！
+  </p>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 10px 12px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px;"><strong style="font-size: 11px; color: #991b1b;">⚠️ 避坑风险提醒</strong><p style="margin: 3px 0 0; font-size: 10px; color: #7f1d1d;">切勿在正文中出现违规诱导分享词汇...</p></div>`,
+  },
+
+  // 2. 步骤条与对比卡 (Step & Comparison Blocks)
+  {
+    id: 'timeline-steps-3',
+    name: '三步极速操作流程卡',
+    description: '带有序数字勋章与垂直连接线的实战教程步骤卡片',
+    category: 'step',
+    icon: '🪜',
+    tag: '实战教程',
+    template: `<section style="margin: 28px 0; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
+  <div style="font-size: 15px; font-weight: bold; color: #0f172a; margin-bottom: 16px; text-align: center;">
+    🚀 三步极速发布标准流水线
+  </div>
+  
+  <div style="display: flex; margin-bottom: 14px; align-items: flex-start;">
+    <div style="width: 26px; height: 26px; border-radius: 50%; background: #1e80ff; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; flex-shrink: 0; margin-right: 12px;">1</div>
+    <div style="flex: 1;">
+      <div style="font-size: 14px; font-weight: 600; color: #1e293b;">本地 Markdown 编写与排版</div>
+      <div style="font-size: 12px; color: #64748b; margin-top: 2px;">自由切换 9 大官方排版主题，实时双栏查看微信手机端效果。</div>
+    </div>
+  </div>
+
+  <div style="display: flex; margin-bottom: 14px; align-items: flex-start;">
+    <div style="width: 26px; height: 26px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; flex-shrink: 0; margin-right: 12px;">2</div>
+    <div style="flex: 1;">
+      <div style="font-size: 14px; font-weight: 600; color: #1e293b;">合规体检与配图秒级压图</div>
+      <div style="font-size: 12px; color: #64748b; margin-top: 2px;">一键扫描新广告法极限词，自动上传本地配图至微信永久素材库。</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: flex-start;">
+    <div style="width: 26px; height: 26px; border-radius: 50%; background: #8b5cf6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; flex-shrink: 0; margin-right: 12px;">3</div>
+    <div style="flex: 1;">
+      <div style="font-size: 14px; font-weight: 600; color: #1e293b;">官方草稿箱直推与全网矩阵同步</div>
+      <div style="font-size: 12px; color: #64748b; margin-top: 2px;">草稿箱无缝生成，一键多发至知乎、掘金、小红书与头条号。</div>
+    </div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;"><div style="font-size: 11px; font-weight: bold; margin-bottom: 6px;">🚀 三步操作流程</div><div style="display: flex; gap: 6px; font-size: 10px;"><span style="background: #1e80ff; color: #fff; border-radius: 50%; width: 16px; height: 16px; text-align: center; line-height: 16px;">1</span><span>编写</span> ➔ <span style="background: #10b981; color: #fff; border-radius: 50%; width: 16px; height: 16px; text-align: center; line-height: 16px;">2</span><span>体检</span> ➔ <span style="background: #8b5cf6; color: #fff; border-radius: 50%; width: 16px; height: 16px; text-align: center; line-height: 16px;">3</span><span>推送</span></div></div>`,
+  },
+  {
+    id: 'pros-cons-card',
+    name: '正面 vs 反面双栏对比卡',
+    description: '对比卡片（推荐做法 vs 避坑做法 / 传统方案 vs 创新方案）',
+    category: 'step',
+    icon: '⚖️',
+    tag: '深度剖析',
+    template: `<section style="margin: 24px 0; display: flex; flex-direction: column; gap: 12px;">
+  <div style="padding: 14px 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px;">
+    <div style="font-size: 14px; font-weight: bold; color: #065f46; margin-bottom: 4px;">
+      ✅ 推荐做法 (Best Practice)
+    </div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #047857;">
+      使用 Markdown 规范写作，通过自动化流水线完成 100% 深度内联，多渠道分发时自动适配对应 Front-Matter 与话题标签。
+    </p>
+  </div>
+
+  <div style="padding: 14px 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;">
+    <div style="font-size: 14px; font-weight: bold; color: #9f1239; margin-bottom: 4px;">
+      ❌ 传统手工作法 (Anti-Pattern)
+    </div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #be123c;">
+      反复在微信编辑器中拖拽字体和色块，换到知乎掘金又得重新复制粘贴找图片，耗时费力且容易出现样式丢失。
+    </p>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="display: flex; gap: 6px;"><div style="flex: 1; padding: 6px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 10px; color: #065f46;"><strong>✅ 推荐做法</strong><br/>自动化流水线排版</div><div style="flex: 1; padding: 6px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; font-size: 10px; color: #9f1239;"><strong>❌ 传统手工</strong><br/>重复手动排版复制</div></div>`,
+  },
+
+  // 3. 微信对话气泡组 (WeChat Chat Bubbles)
+  {
+    id: 'wechat-chat-bubbles',
+    name: '微信仿真对话气泡组',
+    description: '生动模拟微信聊天记录（左侧读者提问气泡 + 右侧博主回复绿气泡），自媒体爆款答疑利器',
+    category: 'chat',
+    icon: '💬',
+    tag: '吸睛沉浸',
+    template: `<section style="margin: 26px 0; padding: 18px 16px; background: #ededed; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <div style="text-align: center; font-size: 11px; color: #8c8c8c; margin-bottom: 14px;">— 微信读者来信提问 —</div>
+
+  <!-- 左侧读者提问 -->
+  <div style="display: flex; align-items: flex-start; margin-bottom: 16px;">
+    <div style="width: 36px; height: 36px; border-radius: 6px; background: #3b82f6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0; margin-right: 10px;">读者</div>
+    <div style="position: relative; max-width: 80%; background: #ffffff; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.5; color: #1f2937; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+      博主你好！请问使用这个发布器把 Markdown 推送到微信公众平台，真的能自动将代码高亮并上传所有配图吗？
+    </div>
+  </div>
+
+  <!-- 右侧博主回复 -->
+  <div style="display: flex; align-items: flex-start; justify-content: flex-end;">
+    <div style="position: relative; max-width: 80%; background: #95ec69; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.5; color: #000000; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-right: 10px;">
+      100% 自动！系统会并发把本地图片直传微信永久素材库，并用 SHA-256 校验幂等性防重复，正文代码块全部高保真内联渲染！
+    </div>
+    <div style="width: 36px; height: 36px; border-radius: 6px; background: #07c160; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0;">作者</div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="background: #ededed; padding: 10px; border-radius: 8px;"><div style="display: flex; gap: 6px; margin-bottom: 8px;"><span style="background: #3b82f6; color: #fff; width: 20px; height: 20px; border-radius: 4px; font-size: 9px; text-align: center; line-height: 20px;">问</span><span style="background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">推送代码块能高亮吗？</span></div><div style="display: flex; justify-content: flex-end; gap: 6px;"><span style="background: #95ec69; padding: 4px 8px; border-radius: 4px; font-size: 10px;">100% 自动高亮！</span><span style="background: #07c160; color: #fff; width: 20px; height: 20px; border-radius: 4px; font-size: 9px; text-align: center; line-height: 20px;">答</span></div></div>`,
+  },
+
+  // 4. 导读与知识卡片 (Card & Overview)
+  {
+    id: 'article-header-brief',
+    name: '开篇深度导读名片',
+    description: '开宗明义标注建议阅读时间、文章主题与核心收获，让读者瞬间抓住重点',
+    category: 'card',
+    icon: '🧭',
+    tag: '专业大刊',
+    template: `<section style="margin: 24px 0; padding: 18px 20px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #e5e7eb; padding-bottom: 8px;">
+    <span style="font-size: 13px; font-weight: bold; color: #1e80ff; display: flex; align-items: center; gap: 4px;">
+      📖 本期深度实战导读
+    </span>
+    <span style="font-size: 11px; color: #9ca3af;">⏱️ 预计耗时 5 分钟</span>
+  </div>
+  <p style="margin: 0; font-size: 13.5px; line-height: 1.75; color: #374151;">
+    <strong>【核心收获】：</strong>读完本篇，你将彻底掌握从纯文本 Markdown 编写、智能素材提纯、广告法安全体检到全网 9 大渠道矩阵一键分发的工业级内容生产全流程。
+  </p>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;"><div style="display: flex; justify-content: space-between; font-size: 11px; color: #1e80ff; font-weight: bold;"><span>📖 深度导读</span><span style="color: #9ca3af; font-size: 9px;">5 分钟</span></div><div style="font-size: 10px; color: #4b5563; margin-top: 4px;">【核心收获】掌握全网矩阵分发全流程...</div></div>`,
+  },
+  {
+    id: 'author-bio-card',
+    name: '精美作者专栏名片',
+    description: '文末作者简介卡片，包含头像占位、专栏介绍与个人标语',
+    category: 'card',
+    icon: '👤',
+    tag: '打造IP',
+    template: `<section style="margin: 28px 0; padding: 16px 20px; background: #fdfbf7; border: 1px solid #f3ebd8; border-radius: 12px; display: flex; align-items: center; gap: 16px;">
+  <div style="width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ef4444); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; flex-shrink: 0; box-shadow: 0 4px 10px rgba(245,158,11,0.25);">
+    专
+  </div>
+  <div style="flex: 1;">
+    <div style="font-size: 15px; font-weight: bold; color: #78350f;">创作者专栏 · 科技探索者</div>
+    <div style="font-size: 12px; color: #92400e; margin-top: 3px; line-height: 1.5;">
+      聚焦前沿全栈工程、自媒体自动化与数字生产力。让每一篇好文章更有价值。
+    </div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fdfbf7; border: 1px solid #f3ebd8; border-radius: 8px;"><div style="width: 32px; height: 32px; border-radius: 50%; background: #f59e0b; color: #fff; text-align: center; line-height: 32px; font-size: 12px; font-weight: bold;">专</div><div><strong style="font-size: 11px; color: #78350f;">创作者专栏</strong><div style="font-size: 10px; color: #92400e;">聚焦全栈工程与数字生产力</div></div></div>`,
+  },
+
+  // 5. 文首文末互动 (Guide & Call-to-Action)
+  {
+    id: 'follow-card-modern',
+    name: '高转化引导在看/关注底卡',
+    description: '呼应主题色，包含三联三连倡导（点赞·在看·分享）的高转化底卡',
+    category: 'guide',
+    icon: '🚀',
+    tag: '高转化三连',
+    template: `<section style="margin: 32px 0 16px; padding: 22px 20px; text-align: center; background: linear-gradient(135deg, rgba(7,193,96,0.06) 0%, rgba(30,128,255,0.06) 100%); border: 1.5px dashed #07c160; border-radius: 14px;">
+  <div style="font-size: 16px; font-weight: bold; color: #07c160; margin-bottom: 4px;">
+    🌟 感谢阅读与陪伴
+  </div>
+  <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
+    如果本期分享对你有启发，别忘了三连支持我们继续创作！
+  </div>
+  <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+    <span style="display: inline-block; padding: 4px 12px; background: #07c160; color: #ffffff; font-size: 12px; font-weight: 500; border-radius: 99px;">👍 点赞支持</span>
+    <span style="display: inline-block; padding: 4px 12px; background: #1e80ff; color: #ffffff; font-size: 12px; font-weight: 500; border-radius: 99px;">❤️ 推荐在看</span>
+    <span style="display: inline-block; padding: 4px 12px; background: #8b5cf6; color: #ffffff; font-size: 12px; font-weight: 500; border-radius: 99px;">🔁 分享给朋友</span>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="text-align: center; padding: 12px; background: linear-gradient(135deg, rgba(7,193,96,0.08), rgba(30,128,255,0.08)); border: 1.5px dashed #07c160; border-radius: 8px;"><strong style="color: #07c160; font-size: 11px;">🌟 感谢阅读与陪伴</strong><div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;"><span style="background: #07c160; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 99px;">👍 点赞</span><span style="background: #1e80ff; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 99px;">❤️ 在看</span><span style="background: #8b5cf6; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 99px;">🔁 分享</span></div></div>`,
+  },
+  {
+    id: 'recommend-article-grid',
+    name: '往期精选两列推荐卡片',
+    description: '双列紧凑排列往期爆款文章推荐，有效拉动历史内容长尾阅读量',
+    category: 'guide',
+    icon: '📚',
+    tag: '长尾流量',
+    template: `<section style="margin: 26px 0;">
+  <div style="font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+    🔥 往期深度精选推荐
+  </div>
+  <div style="display: flex; gap: 10px; flex-direction: column;">
+    <div style="padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 13px; font-weight: 500; color: #1e293b;">👉 《如何从零搭建自动化微信自媒体推送矩阵》</span>
+      <span style="font-size: 11px; color: #3b82f6;">阅读 ➔</span>
+    </div>
+    <div style="padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 13px; font-weight: 500; color: #1e293b;">👉 《Markdown 微信排版样式 100% 深度内联实战》</span>
+      <span style="font-size: 11px; color: #3b82f6;">阅读 ➔</span>
+    </div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;"><div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">🔥 往期精选</div><div style="font-size: 9px; color: #1e80ff;">👉 《自媒体自动化矩阵》<br/>👉 《Markdown 排版深度内联》</div></div>`,
+  },
+
+  // 6. 交互折叠与画廊 (Interactive & Gallery)
   {
     id: 'faq-accordion',
-    name: '点击展开/折叠答疑',
-    description: '利用原生 details/summary 实现点击展开收起，增加读者互动与停留时长',
-    category: 'interaction',
+    name: '点击展开/折叠答疑卡片',
+    description: '利用 HTML5 原生 details/summary 实现点击展开揭晓，大幅提升读者停留与互动率',
+    category: 'interactive',
     icon: '💡',
-    template: `<details class="wechat-faq-card">
-  <summary class="faq-summary">💡 点击揭晓深度思考题与解析</summary>
-  <div class="faq-content">
-    <p><strong>【核心要点】</strong>微信官方草稿箱 API 对 HTML 内容长度有 20k 限制，但网页端后台没有此限制。利用本工具的<strong>自动极限压缩</strong>与<strong>一键复制排版</strong>功能，即可轻松突破发布障碍！</p>
+    tag: '原生折叠',
+    template: `<details style="margin: 22px 0; border: 1.5px solid #1e80ff; border-radius: 10px; background: #f0f7ff; overflow: hidden; cursor: pointer;">
+  <summary style="padding: 12px 16px; font-size: 14px; font-weight: bold; color: #1e80ff; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+    <span>💡 思考题：微信草稿箱 API 与网页后台有何区别？</span>
+    <span style="font-size: 11px; background: #1e80ff; color: #ffffff; padding: 2px 8px; border-radius: 99px;">点击展开解析</span>
+  </summary>
+  <div style="padding: 14px 16px; background: #ffffff; border-top: 1px solid #dbeafe; font-size: 13.5px; line-height: 1.75; color: #374151;">
+    <strong>【核心要点】：</strong>微信官方草稿箱 API 对 HTML 字符长度有 20,000 字符限制；但微信公众平台网页版后台富文本编辑器没有该限制。本工具提供“极速压缩”与“一键复制微信排版”双通道，完美兼顾两种场景！
   </div>
 </details>
 
 `,
-    previewHtml: `<div style="border: 1.5px dashed #1e80ff; background: #f0f7ff; padding: 12px 16px; border-radius: 8px; font-size: 13px; color: #1e80ff; cursor: pointer;">💡 <strong>点击揭晓深度思考题与解析</strong> <span style="font-size: 11px; float: right;">[展开]</span></div>`,
+    previewHtml: `<div style="border: 1.5px solid #1e80ff; background: #f0f7ff; padding: 10px 12px; border-radius: 6px; font-size: 11px; color: #1e80ff;">💡 <strong>思考题：API 与网页后台有何区别？</strong> <span style="font-size: 9px; float: right; background: #1e80ff; color: #fff; padding: 1px 4px; border-radius: 4px;">展开</span></div>`,
   },
   {
     id: 'scroll-gallery',
-    name: '左右滑动多图图集',
-    description: '手势横向无缝滑动卡片，适合展示多张连贯摄影、产品细节或对比配图',
-    category: 'gallery',
+    name: '左右手势滑动图集画廊',
+    description: '微信原生横向滑动多图轨道，适合展示连续摄影图组或产品细节对比',
+    category: 'interactive',
     icon: '🎠',
-    template: `<section class="wechat-scroll-gallery">
-  <div class="gallery-track">
-    <div class="gallery-item">
-      <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80" alt="配图1" />
-      <span class="gallery-caption">图 1 · 架构设计</span>
+    tag: '手势滑动',
+    template: `<section style="margin: 24px 0; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
+  <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch;">
+    <div style="flex: 0 0 240px; border-radius: 8px; overflow: hidden; background: #e2e8f0;">
+      <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80" style="width: 100%; height: 140px; object-fit: cover; display: block;" alt="配图1" />
+      <div style="padding: 6px 8px; font-size: 11px; color: #475569; text-align: center; background: #fff;">图 1 · 极简架构设计</div>
     </div>
-    <div class="gallery-item">
-      <img src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80" alt="配图2" />
-      <span class="gallery-caption">图 2 · 实时渲染</span>
+    <div style="flex: 0 0 240px; border-radius: 8px; overflow: hidden; background: #e2e8f0;">
+      <img src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80" style="width: 100%; height: 140px; object-fit: cover; display: block;" alt="配图2" />
+      <div style="padding: 6px 8px; font-size: 11px; color: #475569; text-align: center; background: #fff;">图 2 · 实时渲染引擎</div>
     </div>
-    <div class="gallery-item">
-      <img src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80" alt="配图3" />
-      <span class="gallery-caption">图 3 · 矩阵分发</span>
+    <div style="flex: 0 0 240px; border-radius: 8px; overflow: hidden; background: #e2e8f0;">
+      <img src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80" style="width: 100%; height: 140px; object-fit: cover; display: block;" alt="配图3" />
+      <div style="padding: 6px 8px; font-size: 11px; color: #475569; text-align: center; background: #fff;">图 3 · 全网矩阵分发</div>
     </div>
   </div>
-  <p class="gallery-hint">👉 左右手势滑动浏览完整图集</p>
+  <div style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 6px;">👉 左右手势滑动查看全部图片</div>
 </section>
 
 `,
-    previewHtml: `<div style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; display: flex; gap: 8px; overflow-x: hidden;"><div style="background: #e0e7ff; width: 80px; height: 50px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #4338ca;">图 1</div><div style="background: #fce7f3; width: 80px; height: 50px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #be185d;">图 2</div><div style="background: #dcfce7; width: 80px; height: 50px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #15803d;">图 3</div></div>`,
+    previewHtml: `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; display: flex; gap: 6px; overflow-x: hidden;"><div style="background: #e0e7ff; width: 60px; height: 36px; border-radius: 4px; font-size: 9px; display: flex; align-items: center; justify-content: center;">图 1</div><div style="background: #fce7f3; width: 60px; height: 36px; border-radius: 4px; font-size: 9px; display: flex; align-items: center; justify-content: center;">图 2</div><div style="background: #dcfce7; width: 60px; height: 36px; border-radius: 4px; font-size: 9px; display: flex; align-items: center; justify-content: center;">图 3</div></div>`,
   },
   {
-    id: 'sticky-summary',
-    name: '吸顶/悬浮精华卡片',
-    description: '带有品牌色阴影与高亮角标的重点总结卡片，开门见山强化核心观点',
+    id: 'code-snippet-card',
+    name: 'Mac 终端风格代码金句卡',
+    description: '带 macOS 红黄绿三色控制圆点与半透明磨砂质感的高颜值代码片段卡',
     category: 'card',
-    icon: '📌',
-    template: `<section class="wechat-sticky-card">
-  <div class="sticky-badge">✨ 本期速读精华</div>
-  <p class="sticky-text">本文全面剖析自媒体自动化排版与微信草稿箱无缝对接实战。掌握这 3 个技巧，即可将每周推文排版耗时从 3 小时缩短至 5 分钟！</p>
+    icon: '💻',
+    tag: '极客美学',
+    template: `<section style="margin: 24px 0; background: #1e1e2e; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.18); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">
+  <div style="background: #181825; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #313244;">
+    <div style="display: flex; gap: 6px;">
+      <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #ff5f56;"></span>
+      <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #ffbd2e;"></span>
+      <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #27c93f;"></span>
+    </div>
+    <span style="font-size: 11px; color: #a6adc8; letter-spacing: 0.5px;">publish-pipeline.ts</span>
+    <span style="font-size: 10px; color: #89b4fa; background: #313244; padding: 1px 6px; border-radius: 4px;">TypeScript</span>
+  </div>
+  <pre style="margin: 0; padding: 16px; font-size: 13px; line-height: 1.7; color: #cdd6f4; overflow-x: auto; background: transparent;"><code style="font-family: inherit;"><span style="color: #cba6f7;">const</span> pipeline = <span style="color: #89b4fa;">createWeChatPipeline</span>({
+  appId: <span style="color: #a6e3a1;">"wx123456789"</span>,
+  autoInlineCss: <span style="color: #fab387;">true</span>,
+  autoUploadMedia: <span style="color: #fab387;">true</span>
+});
+<span style="color: #cba6f7;">await</span> pipeline.<span style="color: #89b4fa;">publishDraft</span>(markdown);</code></pre>
 </section>
 
 `,
-    previewHtml: `<div style="background: #fff; border-left: 4px solid #da282a; box-shadow: 0 4px 12px rgba(218,40,42,0.12); padding: 12px 14px; border-radius: 6px;"><span style="background: #da282a; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px;">✨ 本期速读精华</span><p style="margin: 6px 0 0; font-size: 12px; color: #374151;">本文全面剖析自媒体自动化排版实战...</p></div>`,
+    previewHtml: `<div style="background: #1e1e2e; border-radius: 6px; padding: 8px;"><div style="display: flex; gap: 4px; margin-bottom: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ff5f56; display: inline-block;"></span><span style="width: 8px; height: 8px; border-radius: 50%; background: #ffbd2e; display: inline-block;"></span><span style="width: 8px; height: 8px; border-radius: 50%; background: #27c93f; display: inline-block;"></span></div><div style="font-size: 10px; color: #89b4fa; font-family: monospace;">pipeline.publishDraft()</div></div>`,
   },
   {
-    id: 'quote-box',
-    name: '浮雕金句引用框',
-    description: '居中大双引号立体质感金句框，优雅展示名人名言或核心座右铭',
-    category: 'card',
-    icon: '💬',
-    template: `<section class="wechat-quote-card">
-  <div class="quote-mark">“</div>
-  <p class="quote-text">工欲善其事，必先利其器。优秀的自媒体创作者应当将时间倾注于深度思考与洞察，而将机械的排版与分发交由自动化流水线。</p>
-  <div class="quote-author">— 科技探索者 · 随笔</div>
-</section>
-
-`,
-    previewHtml: `<div style="text-align: center; background: #fdfbf7; border: 1px solid #f3ebd8; padding: 14px; border-radius: 8px;"><div style="font-size: 24px; color: #b45309; line-height: 1;">“</div><div style="font-size: 12px; color: #78350f; font-style: italic;">工欲善其事，必先利其器...</div><div style="font-size: 10px; color: #92400e; margin-top: 4px;">— 随笔</div></div>`,
-  },
-  {
-    id: 'follow-card',
-    name: '引导在看/关注底卡',
-    description: '文末引导点赞、在看与长按关注的高转化精致卡片，呼应主题主色系',
-    category: 'guide',
-    icon: '🚀',
-    template: `<section class="wechat-follow-card">
-  <div class="follow-title">欢迎关注「科技探索者」</div>
-  <div class="follow-desc">每周分享优质 Markdown 排版技巧、全栈开发与效率神器实战</div>
-  <div class="follow-badge-container">
-    <span class="follow-badge">👆 长按指纹识别关注</span>
-    <span class="follow-badge">❤️ 点击右下角「在看」</span>
-    <span class="follow-badge">🔁 转发给身边的朋友</span>
+    id: 'podcast-audio-mock',
+    name: '沉浸式音频/播客试听条',
+    description: '模拟微信官方语音/播客播放条视觉，提升文章多媒体质感与停留时长',
+    category: 'interactive',
+    icon: '🎙️',
+    tag: '播客原声',
+    template: `<section style="margin: 26px 0; padding: 14px 18px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+  <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+    <div style="width: 40px; height: 40px; border-radius: 50%; background: #07c160; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(7,193,96,0.3);">
+      ▶
+    </div>
+    <div>
+      <div style="font-size: 14px; font-weight: 600; color: #111827;">🎙️ 本期作者原声语音划重点 · 03分42秒</div>
+      <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">建议戴上耳机，边听作者拆解边阅读</div>
+    </div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 3px; height: 20px;">
+    <span style="width: 3px; height: 8px; background: #07c160; border-radius: 2px;"></span>
+    <span style="width: 3px; height: 16px; background: #07c160; border-radius: 2px;"></span>
+    <span style="width: 3px; height: 12px; background: #07c160; border-radius: 2px;"></span>
+    <span style="width: 3px; height: 18px; background: #07c160; border-radius: 2px;"></span>
+    <span style="width: 3px; height: 10px; background: #07c160; border-radius: 2px;"></span>
   </div>
 </section>
 
 `,
-    previewHtml: `<div style="text-align: center; background: linear-gradient(135deg, #1e80ff0d, #8b5cf61a); border: 1px solid #1e80ff33; border-radius: 10px; padding: 14px;"><strong style="color: #1e80ff; font-size: 13px;">欢迎关注「科技探索者」</strong><div style="font-size: 11px; color: #64748b; margin-top: 4px;">每周分享优质干货实战</div><div style="display: inline-block; margin-top: 8px; font-size: 10px; background: #1e80ff; color: #fff; padding: 2px 8px; border-radius: 99px;">点赞 · 在看 · 分享</div></div>`,
+    previewHtml: `<div style="background: #f3f4f6; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;"><div style="display: flex; align-items: center; gap: 8px;"><span style="width: 24px; height: 24px; border-radius: 50%; background: #07c160; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center;">▶</span><span style="font-size: 11px; font-weight: 600;">🎙️ 作者原声重点 · 03:42</span></div><span style="color: #07c160; font-size: 12px;">ıılIı</span></div>`,
   },
   {
-    id: 'math-formula-sample',
-    name: '数学公式 (LaTeX / KaTeX)',
-    description: '支持行内公式 $E=mc^2$ 与多行复杂微积分、矩阵公式的高保真内联渲染',
-    category: 'interaction',
-    icon: '📐',
-    template: `### 核心数理推导
-
-行内公式示例：根据相对论质能方程 $E = mc^2$，以及动量关系 $p = \\hbar k$。
-
-块级高斯积分与极限公式：
-
-$$
-\\int_{-\\infty}^{+\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}
-$$
-
-多元矩阵运算示例：
-
-$$
-\\mathbf{A} = \\begin{pmatrix}
-a_{11} & a_{12} \\\\
-a_{21} & a_{22}
-\\end{pmatrix}, \\quad
-\\det(\\mathbf{A}) = a_{11}a_{22} - a_{12}a_{21}
-$$
-
-`,
-    previewHtml: `<div style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; text-align: center; font-family: serif; font-size: 14px; color: #1f2937;">∫ e<sup>-x²</sup> dx = √π</div>`,
-  },
-  {
-    id: 'mermaid-diagram-sample',
-    name: 'Mermaid 流程图 / 时序图',
-    description: '直接编写 Mermaid 代码块，自动渲染为微信全端兼容的矢量流程图卡片',
-    category: 'interaction',
+    id: 'poll-voting-card',
+    name: '文末互动投票表决卡',
+    description: '直观的双选项观点投票模拟卡，强力激发读者在评论区留言表态',
+    category: 'interactive',
     icon: '📊',
-    template: `### 微信发布系统数据流向
-
-\`\`\`mermaid
-graph TD
-  A[Markdown 源文件] -->|解析 Front-Matter| B[AST 语法树]
-  B -->|Juice 样式注入| C[内联 CSS HTML]
-  C -->|极速压图与去重| D[微信素材库 CDN]
-  D -->|draft/add API| E[微信官方草稿箱]
-  E -->|一键正式群发| F[全网读者推送]
-\`\`\`
+    tag: '促评神器',
+    template: `<section style="margin: 28px 0; padding: 18px 20px; background: #fdf4ff; border: 1.5px solid #f0abfc; border-radius: 14px;">
+  <div style="font-size: 15px; font-weight: bold; color: #86198f; margin-bottom: 12px; text-align: center;">
+    🗳️ 读者态度大调查：你平时用哪种方式排版微信？
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div style="padding: 10px 14px; background: #ffffff; border: 1px solid #f5d0fe; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 13px; font-weight: 500; color: #701a75;">A. 坚持 Markdown 极简排版，追求效率与美观</span>
+      <span style="font-size: 12px; color: #a21caf; font-weight: bold;">83% 同行支持</span>
+    </div>
+    <div style="padding: 10px 14px; background: #ffffff; border: 1px solid #f5d0fe; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 13px; font-weight: 500; color: #701a75;">B. 传统富文本拖拽修改，习惯了手工微调</span>
+      <span style="font-size: 12px; color: #a21caf; font-weight: bold;">17% 同行支持</span>
+    </div>
+  </div>
+  <div style="text-align: center; font-size: 11px; color: #a21caf; margin-top: 10px;">
+    💬 欢迎在右下角「写留言」分享你的观点与工作流！
+  </div>
+</section>
 
 `,
-    previewHtml: `<div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px;"><span style="background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px;">Markdown</span> ➔ <span style="background: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px;">草稿箱</span> ➔ <span style="background: #8b5cf6; color: #fff; padding: 2px 6px; border-radius: 4px;">正式群发</span></div>`,
+    previewHtml: `<div style="background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 8px; padding: 8px 10px;"><strong style="font-size: 10px; color: #86198f;">🗳️ 互动调查：你用什么方式排版？</strong><div style="margin-top: 4px; font-size: 9px; color: #701a75;"><div style="background: #fff; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px;">A. Markdown 极速流 (83%)</div><div style="background: #fff; padding: 2px 6px; border-radius: 4px;">B. 传统富文本 (17%)</div></div></div>`,
+  },
+  {
+    id: 'gold-badge-highlight',
+    name: '黑金奢雅深度研报框',
+    description: '深黑底色与烫金边框，专为高端商业分析、行业深度研报打造',
+    category: 'quote',
+    icon: '👑',
+    tag: '大厂研报',
+    template: `<section style="margin: 26px 0; padding: 20px 22px; background: #1c1917; border: 1px solid #d97706; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.25);">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #44403c; padding-bottom: 8px;">
+    <span style="font-size: 12px; font-weight: bold; color: #fbbf24; letter-spacing: 1px;">
+      👑 INDUSTRY INSIGHT · 行业洞察
+    </span>
+    <span style="font-size: 10px; color: #a8a29e; background: #292524; padding: 2px 6px; border-radius: 4px;">深度研判</span>
+  </div>
+  <p style="margin: 0; font-size: 14px; line-height: 1.85; color: #fef08a;">
+    在自媒体进入存量博弈时代的今天，真正拉开创作者差距的不再是发布频率，而是内容的原子化沉淀与跨平台全域渗透能力。
+  </p>
+</section>
+
+`,
+    previewHtml: `<div style="background: #1c1917; border: 1px solid #d97706; border-radius: 6px; padding: 8px 10px;"><div style="font-size: 9px; color: #fbbf24; font-weight: bold;">👑 行业洞察</div><p style="margin: 3px 0 0; font-size: 10px; color: #fef08a;">自媒体进入存量博弈，核心是跨平台渗透...</p></div>`,
+  },
+  {
+    id: 'quote-dialogue-split',
+    name: '红蓝思辨观点对撞卡',
+    description: '左翼正方观点 vs 右翼反方观点，适合科技伦理、商业趋势等思辨话题',
+    category: 'step',
+    icon: '⚡',
+    tag: '双向思辨',
+    template: `<section style="margin: 28px 0; padding: 18px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+  <div style="font-size: 14px; font-weight: bold; text-align: center; color: #111827; margin-bottom: 14px;">
+    ⚡ 焦点思辨：自动化会削弱自媒体的温度吗？
+  </div>
+  <div style="display: flex; gap: 12px; flex-direction: column;">
+    <div style="padding: 12px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0;">
+      <div style="font-size: 12px; font-weight: bold; color: #1d4ed8; margin-bottom: 2px;">🔵 正方视角：效率解放思考</div>
+      <div style="font-size: 13px; color: #1e40af; line-height: 1.6;">工具抹平了重复劳动，让创作者有更多精力与读者深入交流、打磨深度观点。</div>
+    </div>
+    <div style="padding: 12px; background: #fff1f2; border-left: 4px solid #f43f5e; border-radius: 0 8px 8px 0;">
+      <div style="font-size: 12px; font-weight: bold; color: #be123c; margin-bottom: 2px;">🔴 反方视角：警惕同质化泛滥</div>
+      <div style="font-size: 13px; color: #9f1239; line-height: 1.6;">过度依赖流水线套路容易让内容沦为格式相同的批量制品，丧失个人鲜明的笔触。</div>
+    </div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;"><div style="font-size: 10px; font-weight: bold; text-align: center;">⚡ 观点对撞</div><div style="font-size: 9px; color: #1d4ed8; background: #eff6ff; padding: 2px 4px; border-radius: 3px; margin: 3px 0;">🔵 效率解放思考</div><div style="font-size: 9px; color: #be123c; background: #fff1f2; padding: 2px 4px; border-radius: 3px;">🔴 警惕同质化</div></div>`,
   },
 ];
+

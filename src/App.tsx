@@ -19,6 +19,8 @@ import { WatchModeModal } from './components/WatchModeModal.tsx';
 import { ArticleExtractModal } from './components/ArticleExtractModal.tsx';
 import { LongImageExportModal } from './components/LongImageExportModal.tsx';
 import { SafetyAuditModal } from './components/SafetyAuditModal.tsx';
+import { CoverDesignerModal } from './components/CoverDesignerModal.tsx';
+import { InteractiveComponentsModal } from './components/InteractiveComponentsModal.tsx';
 import { performSafetyAudit } from './utils/safetyAudit.ts';
 import {
   WeChatAccountConfig,
@@ -269,6 +271,8 @@ export default function App() {
   const [isExtractArticleOpen, setIsExtractArticleOpen] = useState<boolean>(false);
   const [isLongImageExportOpen, setIsLongImageExportOpen] = useState<boolean>(false);
   const [isSafetyAuditOpen, setIsSafetyAuditOpen] = useState<boolean>(false);
+  const [isCoverDesignerOpen, setIsCoverDesignerOpen] = useState<boolean>(false);
+  const [isInteractiveComponentsOpen, setIsInteractiveComponentsOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -850,6 +854,7 @@ export default function App() {
         onOpenExtractArticle={() => setIsExtractArticleOpen(true)}
         onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
         onOpenSafetyAudit={() => setIsSafetyAuditOpen(true)}
+        onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -891,6 +896,8 @@ export default function App() {
         onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
         onOpenSafetyAudit={() => setIsSafetyAuditOpen(true)}
         safetyScore={safetyReport.score}
+        onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
+        onOpenInteractiveComponents={() => setIsInteractiveComponentsOpen(true)}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -909,6 +916,7 @@ export default function App() {
             onRefreshHistory={fetchHistory}
             isZenMode={isZenMode}
             onToggleZenMode={() => setIsZenMode((prev) => !prev)}
+            onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
           />
         </div>
 
@@ -1156,6 +1164,29 @@ export default function App() {
         onApplyFixedMarkdown={(fixedMd) => {
           setMarkdown(fixedMd);
           showToast('✨ 已完成合规脱敏修复！');
+        }}
+      />
+
+      {/* WeChat 2.35:1 & Multi-ratio Cover Image Design Workshop Modal */}
+      <CoverDesignerModal
+        isOpen={isCoverDesignerOpen}
+        onClose={() => setIsCoverDesignerOpen(false)}
+        title={metadata.title}
+        author={metadata.author}
+        digest={metadata.digest}
+        onApplyCover={(coverDataUrl) => {
+          setMetadata((prev) => ({ ...prev, cover: coverDataUrl }));
+          showToast('🎨 封面设计已成功应用至当前文章！');
+        }}
+      />
+
+      {/* WeChat Viral Interactive Components & Rich Material Library Modal */}
+      <InteractiveComponentsModal
+        isOpen={isInteractiveComponentsOpen}
+        onClose={() => setIsInteractiveComponentsOpen(false)}
+        onInsertComponent={(template, name) => {
+          setMarkdown((prev) => `${prev.trim()}\n\n${template.trim()}\n\n`);
+          showToast(`✨ 已成功插入排版物料「${name}」！`);
         }}
       />
 
