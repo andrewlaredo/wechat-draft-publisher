@@ -16,6 +16,7 @@ import {
   Flame,
   Calendar,
   Command,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -49,6 +50,9 @@ interface ToolbarProps {
   onOpenHeadlineLab?: () => void;
   onOpenEditorialCalendar?: () => void;
   onOpenCommandPalette?: () => void;
+  onOpenSvgInteractive?: () => void;
+  onOpenStockPhoto?: () => void;
+  onOpenXiaolvshuStudio?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -92,6 +96,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenHeadlineLab,
   onOpenEditorialCalendar,
   onOpenCommandPalette,
+  onOpenSvgInteractive,
+  onOpenStockPhoto,
+  onOpenXiaolvshuStudio,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -318,6 +325,51 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       <Calendar className="w-3 h-3 text-blue-400" />
                       <span className="hidden sm:inline">运营日历</span>
                       <span className="sm:hidden">日历</span>
+                    </button>
+                  )}
+
+                  {/* Open SVG Interactive Canvas */}
+                  {onOpenSvgInteractive && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-svg-interactive"
+                      onClick={onOpenSvgInteractive}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-emerald-300 hover:text-emerald-200 border border-emerald-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="微信原生 SVG 交互黑科技排版工坊：点击展开、手势横滑图集、黑胶唱片旋转、全景弹幕"
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-400" />
+                      <span className="hidden sm:inline">SVG动效</span>
+                      <span className="sm:hidden">动效</span>
+                    </button>
+                  )}
+
+                  {/* Open Royalty-free Stock Photos */}
+                  {onOpenStockPhoto && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-stock-photo"
+                      onClick={onOpenStockPhoto}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-sky-300 hover:text-sky-200 border border-sky-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="免版权高清商用图库：Unsplash 商业免版权授权配图一键检索与容器美化"
+                    >
+                      <ImageIcon className="w-3 h-3 text-sky-400" />
+                      <span className="hidden sm:inline">商用配图</span>
+                      <span className="sm:hidden">配图</span>
+                    </button>
+                  )}
+
+                  {/* Open Xiaolvshu Studio */}
+                  {onOpenXiaolvshuStudio && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-xiaolvshu-studio"
+                      onClick={onOpenXiaolvshuStudio}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-teal-300 hover:text-teal-200 border border-teal-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="微信小绿书模式：3:4 九宫格图文卡片智能切片工坊与批量高清导出"
+                    >
+                      <Smartphone className="w-3 h-3 text-teal-400" />
+                      <span className="hidden sm:inline">小绿书切图</span>
+                      <span className="sm:hidden">小绿书</span>
                     </button>
                   )}
 

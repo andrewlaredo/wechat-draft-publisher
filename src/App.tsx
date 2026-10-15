@@ -24,6 +24,9 @@ import { InteractiveComponentsModal } from './components/InteractiveComponentsMo
 import { HeadlineLabModal } from './components/HeadlineLabModal.tsx';
 import { CommandPaletteModal, CommandItem } from './components/CommandPaletteModal.tsx';
 import { EditorialCalendarModal } from './components/EditorialCalendarModal.tsx';
+import { SvgInteractiveModal } from './components/SvgInteractiveModal.tsx';
+import { StockPhotoModal } from './components/StockPhotoModal.tsx';
+import { XiaolvshuStudioModal } from './components/XiaolvshuStudioModal.tsx';
 import { performSafetyAudit } from './utils/safetyAudit.ts';
 import { upsertEditorialTask, EditorialTask } from './utils/editorialManager.ts';
 import {
@@ -42,6 +45,8 @@ import {
   Minimize2,
   Layers,
   DownloadCloud,
+  Image as ImageIcon,
+  Smartphone,
 } from 'lucide-react';
 import {
   WeChatAccountConfig,
@@ -297,6 +302,9 @@ export default function App() {
   const [isHeadlineLabOpen, setIsHeadlineLabOpen] = useState<boolean>(false);
   const [isEditorialCalendarOpen, setIsEditorialCalendarOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isSvgInteractiveOpen, setIsSvgInteractiveOpen] = useState<boolean>(false);
+  const [isStockPhotoOpen, setIsStockPhotoOpen] = useState<boolean>(false);
+  const [isXiaolvshuStudioOpen, setIsXiaolvshuStudioOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -975,6 +983,33 @@ export default function App() {
       action: () => setIsInteractiveComponentsOpen(true),
     },
     {
+      id: 'cmd-svg',
+      title: '微信原生 SVG 交互黑科技排版工坊',
+      subtitle: '点击展开揭秘、手势横滑图集、黑胶唱片旋转、全景弹幕墙等微信内联动效',
+      category: 'visual',
+      icon: <Sparkles className="w-4 h-4 text-emerald-400" />,
+      keywords: ['svg', '动效', '交互', '折叠', '滑动', '黑胶', '弹幕', 'animation'],
+      action: () => setIsSvgInteractiveOpen(true),
+    },
+    {
+      id: 'cmd-stock-photo',
+      title: '免版权高清商用图库与智能配图流水线',
+      subtitle: 'Unsplash 免费商用图库精选，带圆角/阴影/图注美化与一键设为封面',
+      category: 'visual',
+      icon: <ImageIcon className="w-4 h-4 text-sky-400" />,
+      keywords: ['配图', '图库', 'unsplash', '图片', '照片', '免版权', '商用', 'stock'],
+      action: () => setIsStockPhotoOpen(true),
+    },
+    {
+      id: 'cmd-xiaolvshu',
+      title: '微信「小绿书模式」九宫格图文卡片工坊',
+      subtitle: '文章智能切片为 3:4 (1080×1440) 精美轮播卡片，支持全套高清打包与草稿直发',
+      category: 'visual',
+      icon: <Smartphone className="w-4 h-4 text-teal-400" />,
+      keywords: ['小绿书', '切图', '卡片', '九宫格', '3:4', '轮播', '图片消息', 'note'],
+      action: () => setIsXiaolvshuStudioOpen(true),
+    },
+    {
       id: 'cmd-longimage',
       title: '导出排版长图',
       subtitle: '生成高清长图卡片海报，便于手机保存与全平台传播',
@@ -1126,6 +1161,9 @@ export default function App() {
         onOpenHeadlineLab={() => setIsHeadlineLabOpen(true)}
         onOpenEditorialCalendar={() => setIsEditorialCalendarOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSvgInteractive={() => setIsSvgInteractiveOpen(true)}
+        onOpenStockPhoto={() => setIsStockPhotoOpen(true)}
+        onOpenXiaolvshuStudio={() => setIsXiaolvshuStudioOpen(true)}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -1145,6 +1183,8 @@ export default function App() {
             isZenMode={isZenMode}
             onToggleZenMode={() => setIsZenMode((prev) => !prev)}
             onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
+            onOpenStockPhoto={() => setIsStockPhotoOpen(true)}
+            onOpenSvgInteractive={() => setIsSvgInteractiveOpen(true)}
           />
         </div>
 
@@ -1452,6 +1492,44 @@ export default function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         commands={commandList}
+      />
+
+      {/* WeChat Native SVG Interactive Animation Canvas Modal */}
+      <SvgInteractiveModal
+        isOpen={isSvgInteractiveOpen}
+        onClose={() => setIsSvgInteractiveOpen(false)}
+        onInsertComponent={(html, name) => {
+          setMarkdown((prev) => `${prev.trim()}\n\n${html.trim()}\n\n`);
+          showToast(`✨ 已成功插入原生 SVG 动效组件「${name}」！`);
+        }}
+      />
+
+      {/* Royalty-free Stock Photo & Image Decorator Modal */}
+      <StockPhotoModal
+        isOpen={isStockPhotoOpen}
+        onClose={() => setIsStockPhotoOpen(false)}
+        onInsertMarkdown={(text) => {
+          setMarkdown((prev) => `${prev.trim()}\n\n${text.trim()}\n\n`);
+          showToast('🖼️ 已成功插入免版权高清商用配图！');
+        }}
+        onSetCover={(imageUrl) => {
+          setMetadata((prev) => ({ ...prev, cover: imageUrl }));
+          showToast('✨ 已成功将配图设为当前文章封面！');
+        }}
+      />
+
+      {/* WeChat Xiaolvshu 3:4 Note Card Studio Modal */}
+      <XiaolvshuStudioModal
+        isOpen={isXiaolvshuStudioOpen}
+        onClose={() => setIsXiaolvshuStudioOpen(false)}
+        markdown={markdown}
+        title={metadata.title}
+        author={metadata.author}
+        digest={metadata.digest}
+        onPublishDraft={() => {
+          setIsXiaolvshuStudioOpen(false);
+          executePublish(false);
+        }}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}

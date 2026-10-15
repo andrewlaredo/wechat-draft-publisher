@@ -12,6 +12,8 @@ import {
   Image as ImageIcon,
   Sparkles,
   FileImage,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { ArticleMeta } from '../types/app.ts';
 import { renderMarkdownLocally } from '../markdown/clientRender.ts';
@@ -43,6 +45,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
 }) => {
   const [copiedHtml, setCopiedHtml] = useState(false);
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Safeguard: Ensure inlinedHtml is real HTML. If it is raw Markdown or lacks HTML tags, parse it locally.
   const safeInlinedHtml = useMemo(() => {
@@ -385,39 +388,88 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
         </div>
 
         {/* Inner Screen */}
-        <div className="w-full h-full bg-white text-neutral-900 rounded-[36px] overflow-hidden flex flex-col relative z-10 select-none min-h-0">
+        <div
+          className={`w-full h-full rounded-[36px] overflow-hidden flex flex-col relative z-10 select-none min-h-0 transition-colors duration-200 ${
+            isDarkMode ? 'bg-[#191919] text-[#e0e0e0]' : 'bg-white text-neutral-900'
+          }`}
+        >
           {/* Status Bar */}
-          <div className="h-10 px-6 pt-2 flex items-center justify-between text-neutral-900 text-xs font-semibold">
+          <div
+            className={`h-10 px-6 pt-2 flex items-center justify-between text-xs font-semibold transition-colors ${
+              isDarkMode ? 'text-neutral-400' : 'text-neutral-900'
+            }`}
+          >
             <span>09:41</span>
             <div className="flex items-center space-x-1.5 text-[11px]">
               <span>5G</span>
-              <div className="w-5 h-2.5 rounded-sm border border-neutral-800 p-0.5 flex items-center">
-                <div className="h-full w-3/4 bg-neutral-900 rounded-2xs" />
+              <div
+                className={`w-5 h-2.5 rounded-sm border p-0.5 flex items-center ${
+                  isDarkMode ? 'border-neutral-500' : 'border-neutral-800'
+                }`}
+              >
+                <div
+                  className={`h-full w-3/4 rounded-2xs ${
+                    isDarkMode ? 'bg-neutral-300' : 'bg-neutral-900'
+                  }`}
+                />
               </div>
             </div>
           </div>
 
           {/* WeChat Top Navigation Bar */}
-          <div className="h-11 px-3 border-b border-neutral-100 flex items-center justify-between bg-white text-neutral-900">
-            <button className="p-1 hover:bg-neutral-100 rounded-full">
-              <ChevronLeft className="w-6 h-6 text-neutral-800" />
+          <div
+            className={`h-11 px-3 border-b flex items-center justify-between transition-colors ${
+              isDarkMode
+                ? 'bg-[#1f1f1f] text-[#e0e0e0] border-[#292929]'
+                : 'bg-white text-neutral-900 border-neutral-100'
+            }`}
+          >
+            <button
+              className={`p-1 rounded-full ${
+                isDarkMode ? 'hover:bg-neutral-800 text-neutral-300' : 'hover:bg-neutral-100 text-neutral-800'
+              }`}
+            >
+              <ChevronLeft className="w-6 h-6" />
             </button>
-            <span className="font-semibold text-sm truncate max-w-[180px]">
-              {metadata.author || '微信公众号'}
-            </span>
+            <div className="flex flex-col items-center">
+              <span className="font-semibold text-sm truncate max-w-[150px]">
+                {metadata.author || '微信公众号'}
+              </span>
+              {isDarkMode && (
+                <span className="text-[9px] text-amber-400 font-mono -mt-0.5">深色夜间仿真</span>
+              )}
+            </div>
             <div className="flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                title={isDarkMode ? '切换回标准白昼模式' : '仿真微信夜间深色模式 (Dark Mode) 渲染'}
+                className={`p-1 rounded-full transition ${
+                  isDarkMode
+                    ? 'text-amber-400 hover:bg-neutral-800'
+                    : 'text-neutral-600 hover:bg-neutral-100'
+                }`}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
               {onOpenLongImageExport && (
                 <button
                   type="button"
                   onClick={onOpenLongImageExport}
                   title="生成并导出高清长图"
-                  className="p-1 hover:bg-neutral-100 rounded-full text-amber-600 transition"
+                  className={`p-1 rounded-full transition ${
+                    isDarkMode ? 'hover:bg-neutral-800 text-amber-400' : 'hover:bg-neutral-100 text-amber-600'
+                  }`}
                 >
                   <FileImage className="w-4 h-4" />
                 </button>
               )}
-              <button className="p-1 hover:bg-neutral-100 rounded-full">
-                <MoreHorizontal className="w-5 h-5 text-neutral-800" />
+              <button
+                className={`p-1 rounded-full ${
+                  isDarkMode ? 'hover:bg-neutral-800 text-neutral-300' : 'hover:bg-neutral-100 text-neutral-800'
+                }`}
+              >
+                <MoreHorizontal className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -555,23 +607,49 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
             /* ========================================================================= */
             <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 text-left overflow-x-hidden">
               {/* Title */}
-              <h1 className="text-xl font-bold tracking-tight text-neutral-900 leading-snug break-words">
+              <h1
+                className={`text-xl font-bold tracking-tight leading-snug break-words transition-colors ${
+                  isDarkMode ? 'text-[#f0f0f0]' : 'text-neutral-900'
+                }`}
+              >
                 {metadata.title || '无标题文章'}
               </h1>
 
               {/* Meta row */}
-              <div className="flex items-center flex-wrap gap-1.5 text-xs text-neutral-500">
-                <span className="text-[#576b95] font-medium">{metadata.author || '公众号作者'}</span>
-                <span className="px-1 py-0.2 rounded text-[10px] bg-neutral-100 text-neutral-600 font-medium">
+              <div
+                className={`flex items-center flex-wrap gap-1.5 text-xs transition-colors ${
+                  isDarkMode ? 'text-neutral-400' : 'text-neutral-500'
+                }`}
+              >
+                <span className={isDarkMode ? 'text-[#7d90b2] font-medium' : 'text-[#576b95] font-medium'}>
+                  {metadata.author || '公众号作者'}
+                </span>
+                <span
+                  className={`px-1 py-0.2 rounded text-[10px] font-medium ${
+                    isDarkMode ? 'bg-neutral-800 text-neutral-300' : 'bg-neutral-100 text-neutral-600'
+                  }`}
+                >
                   原创
                 </span>
                 <span>2026年9月18日</span>
                 {themeEnabled ? (
-                  <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
+                  <span
+                    className={`px-1.5 py-0.2 rounded text-[10px] font-medium border ${
+                      isDarkMode
+                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}
+                  >
                     {themeName} 主题
                   </span>
                 ) : (
-                  <span className="px-1.5 py-0.2 rounded text-[10px] bg-neutral-100 text-neutral-600 font-medium border border-neutral-200">
+                  <span
+                    className={`px-1.5 py-0.2 rounded text-[10px] font-medium border ${
+                      isDarkMode
+                        ? 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                        : 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
                     原生极简
                   </span>
                 )}
@@ -579,7 +657,11 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
 
               {/* Optional Cover Banner */}
               {metadata.cover && (
-                <div className="rounded-lg overflow-hidden my-3 border border-neutral-100">
+                <div
+                  className={`rounded-lg overflow-hidden my-3 border ${
+                    isDarkMode ? 'border-neutral-800' : 'border-neutral-100'
+                  }`}
+                >
                   <img
                     src={metadata.cover}
                     alt="Cover"
@@ -593,12 +675,20 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
 
               {/* Article Rendered Body */}
               <div
-                className="wechat-preview-body text-neutral-800 max-w-full overflow-x-hidden break-words"
+                className={`wechat-preview-body max-w-full overflow-x-hidden break-words transition-colors ${
+                  isDarkMode ? 'text-[#d5d5d5]' : 'text-neutral-800'
+                }`}
                 dangerouslySetInnerHTML={{ __html: safeInlinedHtml }}
               />
 
               {/* WeChat Standard Footer */}
-              <div className="pt-8 pb-4 border-t border-neutral-100 space-y-4 text-xs text-neutral-400">
+              <div
+                className={`pt-8 pb-4 border-t space-y-4 text-xs transition-colors ${
+                  isDarkMode
+                    ? 'border-neutral-800 text-neutral-400'
+                    : 'border-neutral-100 text-neutral-400'
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <span>阅读 10万+</span>
                   <div className="flex items-center space-x-4">
@@ -618,21 +708,39 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
                 </div>
 
                 {metadata.comment && (
-                  <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-100 space-y-2">
-                    <div className="flex items-center justify-between text-neutral-600 font-medium">
+                  <div
+                    className={`p-3 rounded-lg border space-y-2 transition-colors ${
+                      isDarkMode
+                        ? 'bg-[#222222] border-neutral-800 text-neutral-300'
+                        : 'bg-neutral-50 border-neutral-100 text-neutral-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between font-medium">
                       <span className="flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-[#576b95]" />
+                        <MessageSquare
+                          className={`w-3.5 h-3.5 ${isDarkMode ? 'text-[#7d90b2]' : 'text-[#576b95]'}`}
+                        />
                         精选留言
                       </span>
-                      <span className="text-[#576b95] text-[11px] cursor-pointer">写留言</span>
+                      <span
+                        className={`text-[11px] cursor-pointer ${
+                          isDarkMode ? 'text-[#7d90b2]' : 'text-[#576b95]'
+                        }`}
+                      >
+                        写留言
+                      </span>
                     </div>
-                    <p className="text-neutral-400 text-[11px]">
+                    <p className={`text-[11px] ${isDarkMode ? 'text-neutral-400' : 'text-neutral-400'}`}>
                       作者已开启精选留言，推送到草稿箱后可在后台置顶审核。
                     </p>
                   </div>
                 )}
 
-                <div className="text-center text-[10px] text-neutral-300 pt-2">
+                <div
+                  className={`text-center text-[10px] pt-2 transition-colors ${
+                    isDarkMode ? 'text-neutral-500' : 'text-neutral-300'
+                  }`}
+                >
                   微信公众平台 · 草稿箱自动同步预览
                 </div>
               </div>

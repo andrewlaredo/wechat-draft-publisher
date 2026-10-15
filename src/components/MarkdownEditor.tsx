@@ -64,6 +64,8 @@ interface MarkdownEditorProps {
   isZenMode?: boolean;
   onToggleZenMode?: () => void;
   onOpenCoverDesigner?: () => void;
+  onOpenStockPhoto?: () => void;
+  onOpenSvgInteractive?: () => void;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -77,6 +79,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   isZenMode = false,
   onToggleZenMode,
   onOpenCoverDesigner,
+  onOpenStockPhoto,
+  onOpenSvgInteractive,
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'metadata' | 'images' | 'history'>('editor');
   const [cleanNotice, setCleanNotice] = useState<string | null>(null);
@@ -599,10 +603,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <button
               onClick={() => insertText('![图片描述](', ')')}
               className="p-1 rounded hover:bg-neutral-700 hover:text-neutral-100 transition"
-              title="插入图片"
+              title="插入图片语法"
             >
               <ImageIcon className="w-3.5 h-3.5" />
             </button>
+            {onOpenStockPhoto && (
+              <button
+                type="button"
+                onClick={onOpenStockPhoto}
+                className="px-2 py-0.5 rounded bg-sky-950/60 hover:bg-sky-900/80 text-sky-300 border border-sky-800/60 text-[11px] font-medium transition flex items-center space-x-1"
+                title="免版权高清商用配图库：Unsplash 免费商用授权配图即搜即用"
+              >
+                <ImageIcon className="w-3 h-3 text-sky-400" />
+                <span>免版权图库</span>
+              </button>
+            )}
             <button
               onClick={() => insertText('- ')}
               className="p-1 rounded hover:bg-neutral-700 hover:text-neutral-100 transition"
@@ -670,6 +685,18 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
               <span>排版物料</span>
             </button>
+
+            {onOpenSvgInteractive && (
+              <button
+                type="button"
+                onClick={onOpenSvgInteractive}
+                className="px-2 py-0.5 rounded bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800/60 text-[11px] font-medium transition flex items-center space-x-1"
+                title="微信原生 SVG 交互排版黑科技工坊：点击展开、手势横滑图集、黑胶唱片旋转"
+              >
+                <Sparkles className="w-3 h-3 text-emerald-400" />
+                <span>SVG动效</span>
+              </button>
+            )}
 
             <button
               type="button"

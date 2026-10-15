@@ -44,6 +44,9 @@ interface HeaderProps {
   onOpenHeadlineLab?: () => void;
   onOpenEditorialCalendar?: () => void;
   onOpenCommandPalette?: () => void;
+  onOpenSvgInteractive?: () => void;
+  onOpenStockPhoto?: () => void;
+  onOpenXiaolvshuStudio?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -70,6 +73,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHeadlineLab,
   onOpenEditorialCalendar,
   onOpenCommandPalette,
+  onOpenSvgInteractive,
+  onOpenStockPhoto,
+  onOpenXiaolvshuStudio,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
