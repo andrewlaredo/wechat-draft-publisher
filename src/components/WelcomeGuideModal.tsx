@@ -56,13 +56,13 @@ export const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-bold text-neutral-100 flex items-center gap-2">
-                <span>欢迎使用 WeChat Draft Publisher</span>
+                <span>欢迎使用 FlowDraft</span>
                 <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/80">
                   新手向导 ({step}/{totalSteps})
                 </span>
               </h2>
               <p className="text-xs text-neutral-400">
-                专为公众号创作者打造的 Markdown 极速排版与草稿推送工作台
+                新媒体排版与自动化发布工作台 (WeChat Draft Publisher)
               </p>
             </div>
           </div>

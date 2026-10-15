@@ -27,8 +27,11 @@ import { EditorialCalendarModal } from './components/EditorialCalendarModal.tsx'
 import { SvgInteractiveModal } from './components/SvgInteractiveModal.tsx';
 import { StockPhotoModal } from './components/StockPhotoModal.tsx';
 import { XiaolvshuStudioModal } from './components/XiaolvshuStudioModal.tsx';
+import { TrendingRadarModal } from './components/TrendingRadarModal.tsx';
+import { AutomationWebhookModal } from './components/AutomationWebhookModal.tsx';
 import { performSafetyAudit } from './utils/safetyAudit.ts';
 import { upsertEditorialTask, EditorialTask } from './utils/editorialManager.ts';
+import { broadcastPublishNotification } from './utils/webhookManager.ts';
 import {
   Send,
   Sparkles,
@@ -47,6 +50,8 @@ import {
   DownloadCloud,
   Image as ImageIcon,
   Smartphone,
+  Compass,
+  Bot,
 } from 'lucide-react';
 import {
   WeChatAccountConfig,
@@ -305,6 +310,8 @@ export default function App() {
   const [isSvgInteractiveOpen, setIsSvgInteractiveOpen] = useState<boolean>(false);
   const [isStockPhotoOpen, setIsStockPhotoOpen] = useState<boolean>(false);
   const [isXiaolvshuStudioOpen, setIsXiaolvshuStudioOpen] = useState<boolean>(false);
+  const [isTrendingRadarOpen, setIsTrendingRadarOpen] = useState<boolean>(false);
+  const [isAutomationWebhookOpen, setIsAutomationWebhookOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -753,6 +760,20 @@ export default function App() {
           targetPlatforms: ['微信公众号'],
           wordCount: markdown.length,
         });
+
+        // Broadcast to team webhooks (WeCom, Feishu, DingTalk) if active
+        if (!dryRun) {
+          broadcastPublishNotification({
+            event: 'publish_success',
+            title: metadata.title,
+            author: metadata.author,
+            digest: metadata.digest,
+            coverUrl: metadata.cover,
+            charCount: markdown.length,
+            draftMediaId: res.data.result?.media_id,
+            accountName: currentTargetAccount?.name || '主公众号',
+          });
+        }
       } else {
         setPublishError(res.data?.error || res.error || '推送草稿箱失败');
         if (res.data?.logs) setPublishLogs(res.data.logs);
@@ -1010,6 +1031,24 @@ export default function App() {
       action: () => setIsXiaolvshuStudioOpen(true),
     },
     {
+      id: 'cmd-trending',
+      title: '全网实时热点雷达与爆款选题中心',
+      subtitle: '聚合微信、知乎、36氪、GitHub 趋势，3 大立意角度一键派生大纲',
+      category: 'operation',
+      icon: <Compass className="w-4 h-4 text-orange-400" />,
+      keywords: ['热点', '雷达', '选题', '知乎', 'trending', 'topics'],
+      action: () => setIsTrendingRadarOpen(true),
+    },
+    {
+      id: 'cmd-webhook',
+      title: '自动化协同与发布通知管道',
+      subtitle: '企微/飞书/钉钉群机器人自动播报、手机扫码审稿与定时调度队列',
+      category: 'publish',
+      icon: <Bot className="w-4 h-4 text-indigo-400" />,
+      keywords: ['webhook', '机器人', '企微', '飞书', '钉钉', '扫码', '自动化', '协同'],
+      action: () => setIsAutomationWebhookOpen(true),
+    },
+    {
       id: 'cmd-longimage',
       title: '导出排版长图',
       subtitle: '生成高清长图卡片海报，便于手机保存与全平台传播',
@@ -1115,6 +1154,8 @@ export default function App() {
         onOpenHeadlineLab={() => setIsHeadlineLabOpen(true)}
         onOpenEditorialCalendar={() => setIsEditorialCalendarOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenTrendingRadar={() => setIsTrendingRadarOpen(true)}
+        onOpenAutomationWebhook={() => setIsAutomationWebhookOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -1164,6 +1205,8 @@ export default function App() {
         onOpenSvgInteractive={() => setIsSvgInteractiveOpen(true)}
         onOpenStockPhoto={() => setIsStockPhotoOpen(true)}
         onOpenXiaolvshuStudio={() => setIsXiaolvshuStudioOpen(true)}
+        onOpenTrendingRadar={() => setIsTrendingRadarOpen(true)}
+        onOpenAutomationWebhook={() => setIsAutomationWebhookOpen(true)}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -1530,6 +1573,34 @@ export default function App() {
           setIsXiaolvshuStudioOpen(false);
           executePublish(false);
         }}
+      />
+
+      {/* Real-time Trending Topic Radar & Outline Generator */}
+      <TrendingRadarModal
+        isOpen={isTrendingRadarOpen}
+        onClose={() => setIsTrendingRadarOpen(false)}
+        author={metadata.author}
+        onApplyOutline={(outlineMarkdown, topicTitle) => {
+          setMarkdown(outlineMarkdown);
+          setMetadata((prev) => ({ ...prev, title: topicTitle }));
+          showToast(`🔥 已成功载入热点选题大纲：《${topicTitle}》`);
+        }}
+        onOpenCalendar={() => {
+          setIsTrendingRadarOpen(false);
+          setIsEditorialCalendarOpen(true);
+        }}
+      />
+
+      {/* Automation & Team Webhooks Modal */}
+      <AutomationWebhookModal
+        isOpen={isAutomationWebhookOpen}
+        onClose={() => setIsAutomationWebhookOpen(false)}
+        title={metadata.title}
+        author={metadata.author}
+        digest={metadata.digest}
+        markdown={markdown}
+        inlinedHtml={inlinedHtml}
+        charCount={charCount}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}

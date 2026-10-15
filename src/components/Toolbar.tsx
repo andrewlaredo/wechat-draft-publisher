@@ -17,6 +17,8 @@ import {
   Calendar,
   Command,
   Image as ImageIcon,
+  Compass,
+  Bot,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -53,6 +55,8 @@ interface ToolbarProps {
   onOpenSvgInteractive?: () => void;
   onOpenStockPhoto?: () => void;
   onOpenXiaolvshuStudio?: () => void;
+  onOpenTrendingRadar?: () => void;
+  onOpenAutomationWebhook?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -99,6 +103,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenSvgInteractive,
   onOpenStockPhoto,
   onOpenXiaolvshuStudio,
+  onOpenTrendingRadar,
+  onOpenAutomationWebhook,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -370,6 +376,36 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       <Smartphone className="w-3 h-3 text-teal-400" />
                       <span className="hidden sm:inline">小绿书切图</span>
                       <span className="sm:hidden">小绿书</span>
+                    </button>
+                  )}
+
+                  {/* Open Trending Radar */}
+                  {onOpenTrendingRadar && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-trending-radar"
+                      onClick={onOpenTrendingRadar}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-orange-300 hover:text-orange-200 border border-orange-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="全网实时热点雷达：聚合微信、知乎、36氪、GitHub 爆款热词与选题立意大纲派生"
+                    >
+                      <Compass className="w-3 h-3 text-orange-400" />
+                      <span className="hidden sm:inline">热点雷达</span>
+                      <span className="sm:hidden">热点</span>
+                    </button>
+                  )}
+
+                  {/* Open Automation & Team Webhooks */}
+                  {onOpenAutomationWebhook && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-automation-webhook"
+                      onClick={onOpenAutomationWebhook}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-indigo-300 hover:text-indigo-200 border border-indigo-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="自动化协同与发布通知管道：企微/飞书/钉钉机器人播报、手机扫码审稿与定时调度"
+                    >
+                      <Bot className="w-3 h-3 text-indigo-400" />
+                      <span className="hidden sm:inline">自动协同</span>
+                      <span className="sm:hidden">协同</span>
                     </button>
                   )}
 

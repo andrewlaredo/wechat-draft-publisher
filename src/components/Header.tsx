@@ -23,6 +23,8 @@ import {
   Flame,
   Calendar,
   Command,
+  Compass,
+  Bot,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -47,6 +49,8 @@ interface HeaderProps {
   onOpenSvgInteractive?: () => void;
   onOpenStockPhoto?: () => void;
   onOpenXiaolvshuStudio?: () => void;
+  onOpenTrendingRadar?: () => void;
+  onOpenAutomationWebhook?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -76,6 +80,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSvgInteractive,
   onOpenStockPhoto,
   onOpenXiaolvshuStudio,
+  onOpenTrendingRadar,
+  onOpenAutomationWebhook,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
@@ -106,16 +112,18 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="min-w-0">
           <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <h1 className="text-sm sm:text-base font-bold tracking-tight text-neutral-100 truncate">
-              <span className="hidden sm:inline">WeChat Draft Publisher</span>
-              <span className="sm:hidden">WeChat Publisher</span>
+            <h1 className="text-sm sm:text-base font-bold tracking-tight text-neutral-100 truncate flex items-center space-x-1.5">
+              <span>FlowDraft</span>
+              <span className="hidden md:inline-block text-[11px] font-normal text-emerald-400/90 bg-emerald-950/70 border border-emerald-800/60 px-1.5 py-0.2 rounded">
+                工作台
+              </span>
             </h1>
             <span className="text-[10px] px-1.5 py-0.2 sm:text-[11px] sm:px-2 sm:py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-medium shrink-0">
-              v1.0
+              v2.0
             </span>
           </div>
           <p className="text-[11px] text-neutral-400 hidden xl:block truncate">
-            微信公众号草稿箱自动推送与多主题排版预览
+            新媒体排版与自动化发布工作台 (WeChat Draft Publisher)
           </p>
         </div>
       </div>
@@ -212,6 +220,33 @@ export const Header: React.FC<HeaderProps> = ({
             <Palette className="w-3.5 h-3.5 text-rose-400" />
             <span className="hidden xl:inline">封面工坊</span>
             <span className="hidden sm:inline xl:hidden">封面</span>
+          </button>
+        )}
+
+        {/* Trending Topic Radar Button */}
+        {onOpenTrendingRadar && (
+          <button
+            onClick={onOpenTrendingRadar}
+            id="btn-header-trending-radar"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-orange-300 border border-neutral-700 transition"
+            title="全网实时热点雷达：聚合微信、知乎、36氪、GitHub 爆款热词与选题立意大纲派生"
+          >
+            <Compass className="w-3.5 h-3.5 text-orange-400" />
+            <span className="hidden 2xl:inline">热点雷达</span>
+            <span className="hidden xl:inline 2xl:hidden">热点</span>
+          </button>
+        )}
+
+        {/* Automation & Team Webhooks Button */}
+        {onOpenAutomationWebhook && (
+          <button
+            onClick={onOpenAutomationWebhook}
+            id="btn-header-automation-webhook"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-indigo-300 border border-neutral-700 transition"
+            title="自动化协同与发布通知管道：企微/飞书/钉钉机器人播报、手机扫码审稿与定时调度"
+          >
+            <Bot className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden 2xl:inline">自动协同</span>
           </button>
         )}
 
@@ -411,7 +446,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenSponsor}
           id="btn-open-sponsor"
           className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 hover:bg-rose-950/40 text-neutral-200 hover:text-rose-300 border border-neutral-700 hover:border-rose-800/60 transition group"
-          title="支持与赞助 WeChat Draft Publisher 开源项目"
+          title="支持与赞助 FlowDraft 开源项目"
         >
           <Heart className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
           <span className="hidden xl:inline">赞助支持</span>

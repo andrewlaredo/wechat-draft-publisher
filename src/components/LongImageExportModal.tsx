@@ -1194,7 +1194,7 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                             >
                               <span>
                                 {customWatermarkText.trim() ||
-                                  `✨ 排版生成于 WeChat Draft Publisher · 主题：${currentThemeObj?.name || activeTheme}`}
+                                  `✨ 排版生成于 FlowDraft · 主题：${currentThemeObj?.name || activeTheme}`}
                               </span>
                             </div>
                           )}

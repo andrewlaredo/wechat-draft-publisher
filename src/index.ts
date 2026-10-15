@@ -7,9 +7,9 @@ import { logger } from './utils/logger.ts';
 const program = new Command();
 
 program
-  .name('wechat-publish')
-  .description('微信公众号草稿箱自动推送与排版工具 (Markdown -> 微信内联 HTML -> 上传图片 -> 创建草稿)')
-  .version('1.0.0')
+  .name('flowdraft')
+  .description('FlowDraft CLI - 新媒体排版与自动化发布工作台 (Markdown -> 微信内联 HTML -> 上传图片 -> 创建草稿)')
+  .version('2.0.0')
   .argument('<markdown-file>', '待发布的 Markdown 文件路径')
   .option('-i, --images <dir>', '配图目录 (默认使用 Markdown 文件所在目录)')
   .option('-c, --config <file>', '配置文件路径 (默认 ./config.yaml)')
