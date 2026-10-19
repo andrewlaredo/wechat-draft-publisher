@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FileText,
   Sliders,
@@ -52,6 +52,12 @@ import {
   formatChineseEnglishSpacing,
   OutlineItem,
 } from '../utils/textBeautifier.ts';
+import {
+  recordEditorCursor,
+  wrapWechatComponent,
+  detectComponentBlocks,
+  DetectedComponentBlock,
+} from '../utils/cursorManager.ts';
 
 interface MarkdownEditorProps {
   markdown: string;
@@ -89,6 +95,30 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   // Outline / Table of Contents state
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
   const [outlineItems, setOutlineItems] = useState<OutlineItem[]>([]);
+
+  // Detected WeChat Components in current markdown
+  const [previewComponent, setPreviewComponent] = useState<DetectedComponentBlock | null>(null);
+  const detectedBlocks = useMemo(() => detectComponentBlocks(markdown), [markdown]);
+
+  const handleLocateComponent = (block: DetectedComponentBlock) => {
+    const textarea = textareaRef.current || (document.getElementById('markdown-textarea') as HTMLTextAreaElement);
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(block.startIndex, block.endIndex);
+    const totalLines = markdown.split('\n').length;
+    const scrollRatio = block.lineStart / Math.max(1, totalLines);
+    textarea.scrollTop = Math.max(0, scrollRatio * textarea.scrollHeight - 80);
+    recordEditorCursor(textarea);
+  };
+
+  const handleDeleteComponent = (block: DetectedComponentBlock) => {
+    const before = markdown.substring(0, block.startIndex);
+    const after = markdown.substring(block.endIndex);
+    const cleanBefore = before.replace(/\n+$/, '\n\n');
+    const cleanAfter = after.replace(/^\n+/, '\n\n');
+    onMarkdownChange((cleanBefore + cleanAfter).trim() + '\n');
+    showNotice(`🗑️ 已安全移除组件「${block.name}」！`);
+  };
 
   // Search & Replace state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -373,7 +403,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const previous = textarea.value;
-    const selection = previous.substring(start, end) || '文本';
+    const selection = previous.substring(start, end) || (after ? '文本' : '');
 
     const replacement = `${before}${selection}${after}`;
     const nextValue = previous.substring(0, start) + replacement + previous.substring(end);
@@ -381,7 +411,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + before.length, start + before.length + selection.length);
+      const cursorTarget = start + before.length + selection.length;
+      textarea.setSelectionRange(cursorTarget, cursorTarget);
+      recordEditorCursor(textarea);
     }, 10);
   };
 
@@ -820,13 +852,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             </div>
           )}
 
-          {/* Alert banner if raw HTML is detected */}
-          {/<section\b[^>]*style=|<span\b[^>]*leaf=|<p\b[^>]*style=|<blockquote\b[^>]*style=/i.test(markdown) && (
+          {/* Alert banner if raw dirty external HTML is detected */}
+          {(() => {
+            const stripped = markdown.replace(/<!--\s*\[WECHAT_COMPONENT[\s\S]*?\[\/WECHAT_COMPONENT\]\s*-->/g, '');
+            return /<section\b[^>]*style=|<span\b[^>]*leaf=|<p\b[^>]*style=|<blockquote\b[^>]*style=/i.test(stripped);
+          })() && (
             <div className="bg-amber-950/80 border-b border-amber-800/80 px-3.5 py-2 text-xs flex items-center justify-between text-amber-200 shrink-0">
               <div className="flex items-center space-x-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>
-                  检测到正文中包含微信富文本 HTML 代码。建议纯化为标准 Markdown。
+                  检测到正文中包含外部粘贴的杂乱 HTML 代码。建议纯化为标准 Markdown。
                 </span>
               </div>
               <button
@@ -837,6 +872,59 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>一键纯化为纯净 Markdown</span>
               </button>
+            </div>
+          )}
+
+          {/* Detected WeChat Components Inspector Bar */}
+          {detectedBlocks.length > 0 && (
+            <div className="bg-neutral-850/95 border-b border-neutral-750 px-3 py-1.5 text-xs flex items-center justify-between gap-2 overflow-x-auto shrink-0 animate-fadeIn">
+              <div className="flex items-center space-x-2 shrink-0">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800/80 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                  <span>已嵌入微信组件 ({detectedBlocks.length})</span>
+                </span>
+                <span className="text-[11px] text-neutral-400 hidden lg:inline">
+                  已开启防污染沙盒隔离：
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
+                {detectedBlocks.map((block: DetectedComponentBlock) => (
+                  <div
+                    key={block.id + block.startIndex}
+                    className="flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-neutral-800 border border-neutral-700/80 text-neutral-200 text-[11px] shrink-0 hover:border-indigo-500/60 transition group"
+                  >
+                    <span className="text-amber-400 font-mono text-[10px]">L{block.lineStart}</span>
+                    <span className="font-medium max-w-[110px] truncate" title={block.name}>
+                      {block.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewComponent(block)}
+                      className="p-0.5 hover:text-amber-300 text-neutral-400 transition ml-0.5"
+                      title="单独预览此组件效果"
+                    >
+                      <Eye className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleLocateComponent(block)}
+                      className="p-0.5 hover:text-blue-300 text-neutral-400 transition"
+                      title="定位到该组件源码所在行"
+                    >
+                      <Compass className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteComponent(block)}
+                      className="p-0.5 hover:text-rose-400 text-neutral-400 transition"
+                      title="安全移除此组件，不留多余 HTML"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -895,6 +983,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               id="markdown-textarea"
               value={markdown}
               onChange={(e) => onMarkdownChange(e.target.value)}
+              onSelect={(e) => recordEditorCursor(e.currentTarget)}
+              onClick={(e) => recordEditorCursor(e.currentTarget)}
+              onKeyUp={(e) => recordEditorCursor(e.currentTarget)}
+              onFocus={(e) => recordEditorCursor(e.currentTarget)}
+              onBlur={(e) => recordEditorCursor(e.currentTarget)}
               onPaste={handleEditorPaste}
               onDrop={handleEditorDrop}
               onKeyDown={handleKeyDown}
@@ -1369,10 +1462,70 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         isOpen={isComponentsModalOpen}
         onClose={() => setIsComponentsModalOpen(false)}
         onInsertComponent={(template, name) => {
-          insertText(template, '');
-          showNotice(`✨ 已成功插入特色组件「${name}」！`);
+          const wrapped = wrapWechatComponent(template, { name, type: 'material' });
+          insertText(`\n\n${wrapped}\n\n`, '');
+          showNotice(`✨ 已在光标处插入特色组件「${name}」！`);
         }}
       />
+
+      {/* Component Mini Preview Modal */}
+      {previewComponent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-neutral-900 border border-neutral-750 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-5 py-3.5 border-b border-neutral-800 flex items-center justify-between bg-neutral-850">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-bold text-neutral-100">{previewComponent.name}</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 font-mono">
+                  第 {previewComponent.lineStart} 行
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewComponent(null)}
+                className="text-neutral-400 hover:text-neutral-200 p-1 rounded-lg hover:bg-neutral-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto bg-neutral-950 flex flex-col items-center justify-center min-h-[180px]">
+              <div
+                className="w-full max-w-md bg-white p-4 rounded-xl shadow-inner text-neutral-900 overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: previewComponent.innerHtml }}
+              />
+            </div>
+
+            <div className="px-5 py-3 border-t border-neutral-800 bg-neutral-850 flex items-center justify-between text-xs">
+              <span className="text-neutral-400 text-[11px]">
+                提示：可在右侧微信真实仿真阅读器中体验完整交互与动画
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleLocateComponent(previewComponent);
+                    setPreviewComponent(null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 transition"
+                >
+                  定位源码
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeleteComponent(previewComponent);
+                    setPreviewComponent(null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/80 transition"
+                >
+                  删除组件
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

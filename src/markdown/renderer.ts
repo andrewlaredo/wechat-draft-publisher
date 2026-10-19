@@ -81,11 +81,23 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
   // Wrap md.render to handle KaTeX Math Formula expressions before AST escaping
   const originalRender = md.render.bind(md);
   md.render = (src: string, env: any) => {
-    const mathTokens: Map<string, string> = new Map();
-    let tokenIndex = 0;
+    // 0. Extract and protect WeChat Interactive Blocks and Material Blocks:
+    // <!-- [WECHAT_COMPONENT ...] -->...<!-- [/WECHAT_COMPONENT] -->
+    const componentTokens: Map<string, string> = new Map();
+    let compIndex = 0;
+    let processed = src.replace(
+      /<!--\s*\[WECHAT_COMPONENT\b[^\]]*\]\s*-->([\s\S]*?)<!--\s*\[\/WECHAT_COMPONENT\]\s*-->/g,
+      (_match, innerHtml) => {
+        const placeholder = `WECHAT_COMP_BLOCK_${compIndex++}_PLACEHOLDER`;
+        componentTokens.set(placeholder, innerHtml.trim());
+        return `\n\n${placeholder}\n\n`;
+      }
+    );
 
     // 1. Extract and protect block math: $$ ... $$
-    let processed = src.replace(/\$\$([\s\S]+?)\$\$/g, (_match, expr) => {
+    const mathTokens: Map<string, string> = new Map();
+    let tokenIndex = 0;
+    processed = processed.replace(/\$\$([\s\S]+?)\$\$/g, (_match, expr) => {
       const placeholder = `WECHAT_KATEX_BLOCK_${tokenIndex++}_PLACEHOLDER`;
       try {
         const rendered = katex.renderToString(expr.trim(), {
@@ -130,6 +142,12 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
     // 4. Restore rendered KaTeX Math HTML
     mathTokens.forEach((renderedHtml, placeholder) => {
       html = html.replace(new RegExp(placeholder, 'g'), renderedHtml);
+    });
+
+    // 5. Restore WeChat Interactive Components completely untouched by Markdown parser
+    componentTokens.forEach((componentHtml, placeholder) => {
+      html = html.replace(new RegExp(`<p>\\s*${placeholder}\\s*<\\/p>`, 'g'), componentHtml);
+      html = html.replace(new RegExp(placeholder, 'g'), componentHtml);
     });
 
     return html;

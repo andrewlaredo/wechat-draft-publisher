@@ -32,6 +32,7 @@ import { AutomationWebhookModal } from './components/AutomationWebhookModal.tsx'
 import { performSafetyAudit } from './utils/safetyAudit.ts';
 import { upsertEditorialTask, EditorialTask } from './utils/editorialManager.ts';
 import { broadcastPublishNotification } from './utils/webhookManager.ts';
+import { wrapWechatComponent, insertAtRecordedCursor } from './utils/cursorManager.ts';
 import {
   Send,
   Sparkles,
@@ -1496,8 +1497,10 @@ export default function App() {
         isOpen={isInteractiveComponentsOpen}
         onClose={() => setIsInteractiveComponentsOpen(false)}
         onInsertComponent={(template, name) => {
-          setMarkdown((prev) => `${prev.trim()}\n\n${template.trim()}\n\n`);
-          showToast(`✨ 已成功插入排版物料「${name}」！`);
+          const wrapped = wrapWechatComponent(template, { name, type: 'material' });
+          const { newMarkdown } = insertAtRecordedCursor(markdown, wrapped, { componentName: name });
+          setMarkdown(newMarkdown);
+          showToast(`✨ 已在光标处插入排版物料「${name}」！`);
         }}
       />
 
@@ -1542,8 +1545,10 @@ export default function App() {
         isOpen={isSvgInteractiveOpen}
         onClose={() => setIsSvgInteractiveOpen(false)}
         onInsertComponent={(html, name) => {
-          setMarkdown((prev) => `${prev.trim()}\n\n${html.trim()}\n\n`);
-          showToast(`✨ 已成功插入原生 SVG 动效组件「${name}」！`);
+          const wrapped = wrapWechatComponent(html, { name, type: 'svg' });
+          const { newMarkdown } = insertAtRecordedCursor(markdown, wrapped, { componentName: name });
+          setMarkdown(newMarkdown);
+          showToast(`✨ 已在光标处插入原生 SVG 动效「${name}」！`);
         }}
       />
 
@@ -1552,8 +1557,9 @@ export default function App() {
         isOpen={isStockPhotoOpen}
         onClose={() => setIsStockPhotoOpen(false)}
         onInsertMarkdown={(text) => {
-          setMarkdown((prev) => `${prev.trim()}\n\n${text.trim()}\n\n`);
-          showToast('🖼️ 已成功插入免版权高清商用配图！');
+          const { newMarkdown } = insertAtRecordedCursor(markdown, text);
+          setMarkdown(newMarkdown);
+          showToast('🖼️ 已在光标处插入免版权商用配图！');
         }}
         onSetCover={(imageUrl) => {
           setMetadata((prev) => ({ ...prev, cover: imageUrl }));
