@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   Compass,
   Bot,
+  Radio,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -57,6 +58,7 @@ interface ToolbarProps {
   onOpenXiaolvshuStudio?: () => void;
   onOpenTrendingRadar?: () => void;
   onOpenAutomationWebhook?: () => void;
+  onOpenMultiAccountBroadcast?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -105,6 +107,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenXiaolvshuStudio,
   onOpenTrendingRadar,
   onOpenAutomationWebhook,
+  onOpenMultiAccountBroadcast,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -406,6 +409,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       <Bot className="w-3 h-3 text-indigo-400" />
                       <span className="hidden sm:inline">自动协同</span>
                       <span className="sm:hidden">协同</span>
+                    </button>
+                  )}
+
+                  {/* Open Multi-Account Matrix Broadcast */}
+                  {onOpenMultiAccountBroadcast && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-multi-account-broadcast"
+                      onClick={onOpenMultiAccountBroadcast}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-teal-300 hover:text-teal-200 border border-teal-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="多公众号一键矩阵发布：同时向多个公众号批量推送草稿箱"
+                    >
+                      <Radio className="w-3 h-3 text-teal-400 animate-pulse" />
+                      <span className="hidden sm:inline">矩阵分发</span>
+                      <span className="sm:hidden">分发</span>
                     </button>
                   )}
 

@@ -40,6 +40,7 @@ import { ArticleMeta, PublishHistoryItem } from '../types/app.ts';
 import { wechatHtmlToMarkdown, isHtmlContent } from '../markdown/html2md.ts';
 import { pickNativeMarkdown, saveNativeMarkdown } from '../utils/wails.ts';
 import { InteractiveComponentsModal } from './InteractiveComponentsModal.tsx';
+import { ComponentInspectorModal } from './ComponentInspectorModal.tsx';
 import {
   getSnapshots,
   saveSnapshot,
@@ -99,6 +100,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // Detected WeChat Components in current markdown
   const [previewComponent, setPreviewComponent] = useState<DetectedComponentBlock | null>(null);
+  const [inspectingComponent, setInspectingComponent] = useState<DetectedComponentBlock | null>(null);
   const detectedBlocks = useMemo(() => detectComponentBlocks(markdown), [markdown]);
 
   const handleLocateComponent = (block: DetectedComponentBlock) => {
@@ -110,6 +112,22 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const scrollRatio = block.lineStart / Math.max(1, totalLines);
     textarea.scrollTop = Math.max(0, scrollRatio * textarea.scrollHeight - 80);
     recordEditorCursor(textarea);
+  };
+
+  const handleUpdateComponentBlock = (blockId: string, newInnerHtml: string, newName?: string) => {
+    const targetBlock = detectedBlocks.find((b) => b.id === blockId);
+    if (!targetBlock) return;
+
+    const wrapped = wrapWechatComponent(newInnerHtml, {
+      id: targetBlock.id,
+      name: newName || targetBlock.name,
+      type: targetBlock.type as any,
+    });
+
+    const before = markdown.substring(0, targetBlock.startIndex);
+    const after = markdown.substring(targetBlock.endIndex);
+    onMarkdownChange(before + wrapped + after);
+    showNotice(`✨ 已成功更新组件「${newName || targetBlock.name}」配置！`);
   };
 
   const handleDeleteComponent = (block: DetectedComponentBlock) => {
@@ -921,6 +939,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                       </span>
                       <button
                         type="button"
+                        onClick={() => setInspectingComponent(block)}
+                        className="p-0.5 hover:text-emerald-300 text-neutral-400 transition"
+                        title="打开表单属性修改器 (Inline Form Inspector)"
+                      >
+                        <Sliders className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setPreviewComponent(block)}
                         className="p-0.5 hover:text-amber-300 text-neutral-400 transition ml-0.5"
                         title="单独预览此组件效果"
@@ -1532,6 +1558,18 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    setInspectingComponent(previewComponent);
+                    setPreviewComponent(null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-blue-900/80 hover:bg-blue-800 text-blue-200 border border-blue-700/80 transition flex items-center gap-1 font-medium"
+                  title="在表单修改器中可视化编辑文案与样式"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>表单修改</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     handleLocateComponent(previewComponent);
                     setPreviewComponent(null);
                   }}
@@ -1554,6 +1592,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           </div>
         </div>
       )}
+
+      {/* Inline Form Inspector Modal */}
+      <ComponentInspectorModal
+        isOpen={!!inspectingComponent}
+        onClose={() => setInspectingComponent(null)}
+        block={inspectingComponent}
+        onUpdateBlock={handleUpdateComponentBlock}
+      />
     </div>
   );
 };

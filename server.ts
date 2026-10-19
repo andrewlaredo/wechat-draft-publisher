@@ -203,14 +203,29 @@ async function startServer() {
         digestOverride,
         coverOverride,
         thumbMediaIdOverride,
+        accountConfig,
       } = req.body;
+
+      // Dynamically override WeChat credentials if accountConfig is provided (for multi-account broadcast)
+      let effectiveConfig = currentConfig;
+      if (accountConfig && (accountConfig.appId || accountConfig.app_id)) {
+        effectiveConfig = {
+          ...currentConfig,
+          wechat: {
+            ...currentConfig.wechat,
+            app_id: accountConfig.appId || accountConfig.app_id,
+            app_secret: accountConfig.appSecret || accountConfig.app_secret || currentConfig.wechat.app_secret,
+            proxy_url: accountConfig.proxyUrl !== undefined ? accountConfig.proxyUrl : accountConfig.proxy_url !== undefined ? accountConfig.proxy_url : currentConfig.wechat.proxy_url,
+          },
+        };
+      }
 
       const logs: Array<{ step: number; msg: string; status: string; timestamp: string }> = [];
 
       const result = await runPublishPipeline({
         markdownContent: markdown,
         filePath,
-        config: currentConfig,
+        config: effectiveConfig,
         dryRun: !!dryRun,
         force: !!force,
         previewMode: !!previewMode,

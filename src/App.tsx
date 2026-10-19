@@ -29,6 +29,7 @@ import { StockPhotoModal } from './components/StockPhotoModal.tsx';
 import { XiaolvshuStudioModal } from './components/XiaolvshuStudioModal.tsx';
 import { TrendingRadarModal } from './components/TrendingRadarModal.tsx';
 import { AutomationWebhookModal } from './components/AutomationWebhookModal.tsx';
+import { MultiAccountBroadcastModal } from './components/MultiAccountBroadcastModal.tsx';
 import { performSafetyAudit } from './utils/safetyAudit.ts';
 import { upsertEditorialTask, EditorialTask } from './utils/editorialManager.ts';
 import { broadcastPublishNotification } from './utils/webhookManager.ts';
@@ -53,6 +54,7 @@ import {
   Smartphone,
   Compass,
   Bot,
+  Radio,
 } from 'lucide-react';
 import {
   WeChatAccountConfig,
@@ -313,6 +315,7 @@ export default function App() {
   const [isXiaolvshuStudioOpen, setIsXiaolvshuStudioOpen] = useState<boolean>(false);
   const [isTrendingRadarOpen, setIsTrendingRadarOpen] = useState<boolean>(false);
   const [isAutomationWebhookOpen, setIsAutomationWebhookOpen] = useState<boolean>(false);
+  const [isMultiAccountBroadcastOpen, setIsMultiAccountBroadcastOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -1050,6 +1053,15 @@ export default function App() {
       action: () => setIsAutomationWebhookOpen(true),
     },
     {
+      id: 'cmd-broadcast',
+      title: '多公众号一键矩阵发布 (Multi-Account Broadcast)',
+      subtitle: '一次性批量向多个公众号草稿箱分发，支持防重定制与实时管道监控',
+      category: 'publish',
+      icon: <Radio className="w-4 h-4 text-teal-400" />,
+      keywords: ['矩阵', '多号', '分发', '广播', '批量', 'broadcast', 'matrix', '群发'],
+      action: () => setIsMultiAccountBroadcastOpen(true),
+    },
+    {
       id: 'cmd-longimage',
       title: '导出排版长图',
       subtitle: '生成高清长图卡片海报，便于手机保存与全平台传播',
@@ -1157,6 +1169,7 @@ export default function App() {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenTrendingRadar={() => setIsTrendingRadarOpen(true)}
         onOpenAutomationWebhook={() => setIsAutomationWebhookOpen(true)}
+        onOpenMultiAccountBroadcast={() => setIsMultiAccountBroadcastOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -1208,6 +1221,7 @@ export default function App() {
         onOpenXiaolvshuStudio={() => setIsXiaolvshuStudioOpen(true)}
         onOpenTrendingRadar={() => setIsTrendingRadarOpen(true)}
         onOpenAutomationWebhook={() => setIsAutomationWebhookOpen(true)}
+        onOpenMultiAccountBroadcast={() => setIsMultiAccountBroadcastOpen(true)}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -1611,6 +1625,26 @@ export default function App() {
         markdown={markdown}
         inlinedHtml={inlinedHtml}
         charCount={charCount}
+      />
+
+      {/* Multi-Account Matrix Broadcast Studio Modal */}
+      <MultiAccountBroadcastModal
+        isOpen={isMultiAccountBroadcastOpen}
+        onClose={() => setIsMultiAccountBroadcastOpen(false)}
+        accounts={accounts}
+        currentArticle={{
+          title: metadata.title,
+          author: metadata.author,
+          digest: metadata.digest,
+          cover: metadata.cover || '',
+          markdown,
+          inlinedHtml,
+          theme: activeTheme,
+          articleType,
+        }}
+        onOpenSettingsAccounts={() => setIsSettingsOpen(true)}
+        onRefreshHistory={fetchHistory}
+        showToast={showToast}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}

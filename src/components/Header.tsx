@@ -25,6 +25,7 @@ import {
   Command,
   Compass,
   Bot,
+  Radio,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -38,6 +39,7 @@ interface HeaderProps {
   onOpenSponsor: () => void;
   onOpenHelpGuide: () => void;
   onOpenMatrixPublish?: () => void;
+  onOpenMultiAccountBroadcast?: () => void;
   onOpenWatchMode?: () => void;
   onOpenExtractArticle?: () => void;
   onOpenLongImageExport?: () => void;
@@ -69,6 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSponsor,
   onOpenHelpGuide,
   onOpenMatrixPublish,
+  onOpenMultiAccountBroadcast,
   onOpenWatchMode,
   onOpenExtractArticle,
   onOpenLongImageExport,
@@ -389,7 +392,19 @@ export const Header: React.FC<HeaderProps> = ({
                     {acc.id === activeAccount?.id && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                   </button>
                 ))}
-                <div className="pt-1 mt-1 border-t border-neutral-800">
+                <div className="pt-1 mt-1 border-t border-neutral-800 space-y-0.5">
+                  {onOpenMultiAccountBroadcast && (
+                    <button
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        onOpenMultiAccountBroadcast();
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-[11px] text-emerald-400 font-medium hover:bg-neutral-800 transition flex items-center gap-1.5"
+                    >
+                      <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                      <span>一键矩阵分发草稿...</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setIsAccountMenuOpen(false);
@@ -468,6 +483,24 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden md:inline">{!hasCredentials ? '一键试运行' : '试运行'}</span>
           <span className="text-[10px] text-neutral-400 hidden xl:inline font-mono">⌘↵</span>
         </button>
+
+        {/* Multi-Account Matrix Broadcast Button */}
+        {onOpenMultiAccountBroadcast && (
+          <button
+            onClick={onOpenMultiAccountBroadcast}
+            id="btn-multi-account-broadcast"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-xs border border-emerald-500/40 transition"
+            title="多公众号一键矩阵发布：批量向多个公众号同步推送草稿箱"
+          >
+            <Radio className="w-3.5 h-3.5 text-teal-200 animate-pulse" />
+            <span className="hidden sm:inline">矩阵发布</span>
+            {accounts.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-950/80 text-emerald-200 border border-emerald-700/60 font-mono hidden md:inline">
+                {accounts.length}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Real Publish to WeChat Button */}
         <button
