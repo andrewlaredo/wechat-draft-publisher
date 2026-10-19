@@ -1557,7 +1557,11 @@ export default function App() {
         isOpen={isStockPhotoOpen}
         onClose={() => setIsStockPhotoOpen(false)}
         onInsertMarkdown={(text) => {
-          const { newMarkdown } = insertAtRecordedCursor(markdown, text);
+          let payload = text;
+          if (/<[a-z][\s\S]*>/i.test(text) && !text.includes('[WECHAT_COMPONENT')) {
+            payload = wrapWechatComponent(text, { name: '免版权商用配图', type: 'image' });
+          }
+          const { newMarkdown } = insertAtRecordedCursor(markdown, payload, { componentName: '免版权商用配图' });
           setMarkdown(newMarkdown);
           showToast('🖼️ 已在光标处插入免版权商用配图！');
         }}

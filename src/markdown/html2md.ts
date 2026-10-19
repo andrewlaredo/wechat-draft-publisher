@@ -7,8 +7,11 @@ import TurndownService from 'turndown';
 export function isHtmlContent(content: string): boolean {
   if (!content || !content.trim()) return false;
 
+  // 0. Remove WeChat safe component blocks entirely (including their inner HTML and SVG)
+  let stripped = content.replace(/<!--\s*\[WECHAT_COMPONENT\b[^\]]*\]\s*-->[\s\S]*?<!--\s*\[\/WECHAT_COMPONENT\]\s*-->/g, '');
+
   // 1. Remove fenced code blocks (```...``` and ~~~...~~~) so code examples don't trigger HTML detection
-  let stripped = content.replace(/(?:```|~~~)[a-zA-Z0-9_-]*\r?\n[\s\S]*?\r?\n(?:```|~~~)/g, '');
+  stripped = stripped.replace(/(?:```|~~~)[a-zA-Z0-9_-]*\r?\n[\s\S]*?\r?\n(?:```|~~~)/g, '');
 
   // 2. Remove inline code (`...`)
   stripped = stripped.replace(/`[^`\r\n]+`/g, '');
@@ -39,8 +42,20 @@ export function wechatHtmlToMarkdown(html: string): string {
     return html;
   }
 
+  // 0. Protect WeChat safe component blocks so Turndown never mangles or strips them
+  const componentBlocks: Map<string, string> = new Map();
+  let compIdx = 0;
+  let protectedHtml = html.replace(
+    /<!--\s*\[WECHAT_COMPONENT\b[^\]]*\]\s*-->[\s\S]*?<!--\s*\[\/WECHAT_COMPONENT\]\s*-->/g,
+    (match) => {
+      const placeholder = `WECHAT_PROTECTED_BLOCK_${compIdx++}_TOKEN`;
+      componentBlocks.set(placeholder, match);
+      return `\n\n${placeholder}\n\n`;
+    }
+  );
+
   // 1. Pre-process: Clean up WeChat-specific wrappers and scripts
-  let cleaned = html
+  let cleaned = protectedHtml
     // Remove scripts and style blocks
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
@@ -144,6 +159,11 @@ export function wechatHtmlToMarkdown(html: string): string {
 
   // Convert
   let md = td.turndown(cleaned);
+
+  // Restore protected WeChat component blocks
+  componentBlocks.forEach((fullBlock, placeholder) => {
+    md = md.replace(placeholder, `\n\n${fullBlock}\n\n`);
+  });
 
   // Post-processing cleanup
   md = md

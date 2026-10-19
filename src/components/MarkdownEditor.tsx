@@ -34,6 +34,7 @@ import {
   ChevronRight,
   Eye,
   Palette,
+  Layout,
 } from 'lucide-react';
 import { ArticleMeta, PublishHistoryItem } from '../types/app.ts';
 import { wechatHtmlToMarkdown, isHtmlContent } from '../markdown/html2md.ts';
@@ -889,41 +890,62 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               </div>
 
               <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
-                {detectedBlocks.map((block: DetectedComponentBlock) => (
-                  <div
-                    key={block.id + block.startIndex}
-                    className="flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-neutral-800 border border-neutral-700/80 text-neutral-200 text-[11px] shrink-0 hover:border-indigo-500/60 transition group"
-                  >
-                    <span className="text-amber-400 font-mono text-[10px]">L{block.lineStart}</span>
-                    <span className="font-medium max-w-[110px] truncate" title={block.name}>
-                      {block.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewComponent(block)}
-                      className="p-0.5 hover:text-amber-300 text-neutral-400 transition ml-0.5"
-                      title="单独预览此组件效果"
+                {detectedBlocks.map((block: DetectedComponentBlock) => {
+                  const isImage = block.type === 'image';
+                  const isSvg = block.type === 'svg';
+                  return (
+                    <div
+                      key={block.id + block.startIndex}
+                      className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-lg border text-[11px] shrink-0 transition group ${
+                        isImage
+                          ? 'bg-sky-950/70 border-sky-800/80 text-sky-200 hover:border-sky-500'
+                          : isSvg
+                          ? 'bg-emerald-950/70 border-emerald-800/80 text-emerald-200 hover:border-emerald-500'
+                          : 'bg-neutral-800 border-neutral-750 text-neutral-200 hover:border-indigo-500/60'
+                      }`}
                     >
-                      <Eye className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleLocateComponent(block)}
-                      className="p-0.5 hover:text-blue-300 text-neutral-400 transition"
-                      title="定位到该组件源码所在行"
-                    >
-                      <Compass className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteComponent(block)}
-                      className="p-0.5 hover:text-rose-400 text-neutral-400 transition"
-                      title="安全移除此组件，不留多余 HTML"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="text-amber-400 font-mono text-[10px]">L{block.lineStart}</span>
+                      <span
+                        className={`text-[9px] px-1 py-0.2 rounded font-mono font-medium ${
+                          isImage
+                            ? 'bg-sky-900/60 text-sky-300'
+                            : isSvg
+                            ? 'bg-emerald-900/60 text-emerald-300'
+                            : 'bg-indigo-950 text-indigo-300'
+                        }`}
+                      >
+                        {isImage ? '配图' : isSvg ? 'SVG' : '物料'}
+                      </span>
+                      <span className="font-medium max-w-[120px] truncate" title={block.name}>
+                        {block.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewComponent(block)}
+                        className="p-0.5 hover:text-amber-300 text-neutral-400 transition ml-0.5"
+                        title="单独预览此组件效果"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLocateComponent(block)}
+                        className="p-0.5 hover:text-blue-300 text-neutral-400 transition"
+                        title="定位到该组件源码所在行"
+                      >
+                        <Compass className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComponent(block)}
+                        className="p-0.5 hover:text-rose-400 text-neutral-400 transition"
+                        title="安全移除此组件，不留多余 HTML"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1474,10 +1496,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <div className="w-full max-w-lg bg-neutral-900 border border-neutral-750 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="px-5 py-3.5 border-b border-neutral-800 flex items-center justify-between bg-neutral-850">
               <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+                {previewComponent.type === 'image' ? (
+                  <ImageIcon className="w-4 h-4 text-sky-400" />
+                ) : previewComponent.type === 'svg' ? (
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Layout className="w-4 h-4 text-amber-400" />
+                )}
                 <h3 className="text-sm font-bold text-neutral-100">{previewComponent.name}</h3>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 font-mono">
-                  第 {previewComponent.lineStart} 行
+                  {previewComponent.type === 'image' ? '配图' : previewComponent.type === 'svg' ? 'SVG动效' : '排版物料'} · 第 {previewComponent.lineStart} 行
                 </span>
               </div>
               <button

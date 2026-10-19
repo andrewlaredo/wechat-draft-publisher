@@ -15,6 +15,7 @@ import {
   Maximize2,
 } from 'lucide-react';
 import { STOCK_PHOTOS, StockPhoto } from '../data/stockPhotos.ts';
+import { wrapWechatComponent } from '../utils/cursorManager.ts';
 
 interface StockPhotoModalProps {
   isOpen: boolean;
@@ -75,12 +76,16 @@ export const StockPhotoModal: React.FC<StockPhotoModalProps> = ({
   }, [activePhoto, borderRadius, enableShadow, captionText]);
 
   const handleInsertWeChatHtml = () => {
-    onInsertMarkdown(generatedWeChatHtml);
+    const wrapped = wrapWechatComponent(generatedWeChatHtml, {
+      name: activePhoto.title ? `配图·${activePhoto.title}` : '免版权商用配图',
+      type: 'image',
+    });
+    onInsertMarkdown(wrapped);
     onClose();
   };
 
   const handleInsertMarkdown = () => {
-    const captionPart = captionText.trim() ? `\n*<center style="font-size:12px;color:#888;">${captionText.trim()}</center>*` : '';
+    const captionPart = captionText.trim() ? `\n*${captionText.trim()}*` : '';
     const md = `![${activePhoto.title}](${activePhoto.url})${captionPart}\n\n`;
     onInsertMarkdown(md);
     onClose();
