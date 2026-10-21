@@ -14,6 +14,7 @@ import {
   FileImage,
   Moon,
   Sun,
+  Smartphone,
 } from 'lucide-react';
 import { ArticleMeta } from '../types/app.ts';
 import { renderMarkdownLocally } from '../markdown/clientRender.ts';
@@ -29,6 +30,7 @@ interface WeChatSimulatorProps {
   newspicCaption?: string;
   scannedImages?: string[];
   onOpenLongImageExport?: () => void;
+  onOpenLiveMobileTunnel?: () => void;
 }
 
 export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
@@ -42,6 +44,7 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
   newspicCaption = '',
   scannedImages = [],
   onOpenLongImageExport,
+  onOpenLiveMobileTunnel,
 }) => {
   const [copiedHtml, setCopiedHtml] = useState(false);
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
@@ -379,7 +382,22 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
   // VIEW 3: MOBILE SIMULATOR (Realistic iPhone WeChat Client)
   // =========================================================================
   return (
-    <div className="h-full overflow-y-auto bg-neutral-950 p-4 lg:p-8 flex justify-center items-start sm:items-center py-6">
+    <div className="h-full overflow-y-auto bg-neutral-950 p-4 lg:p-8 flex flex-col justify-center items-center py-6 relative">
+      {/* Floating Live Mobile Tunnel Prompt */}
+      {onOpenLiveMobileTunnel && (
+        <div
+          onClick={onOpenLiveMobileTunnel}
+          className="mb-3 hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-neutral-900/90 hover:bg-neutral-850 backdrop-blur-xs border border-emerald-800/80 hover:border-emerald-500/80 text-emerald-300 text-xs shadow-lg transition cursor-pointer select-none group"
+          title="手机微信扫一扫直连电脑端，实时热更真机审稿"
+        >
+          <Smartphone className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform animate-pulse" />
+          <span className="font-medium">局域网手机真机实时同步审稿 (Live Mobile Tunnel)</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-200 border border-emerald-700/60 font-mono">
+            扫码直连
+          </span>
+        </div>
+      )}
+
       {/* Mobile Device Frame */}
       <div className="w-full max-w-[390px] h-[780px] flex-shrink-0 my-auto bg-neutral-900 rounded-[44px] p-3 shadow-2xl ring-1 ring-neutral-800 flex flex-col relative overflow-hidden">
         {/* Dynamic Island / Speaker */}
@@ -452,6 +470,19 @@ export const WeChatSimulator: React.FC<WeChatSimulatorProps> = ({
               >
                 {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+              {onOpenLiveMobileTunnel && (
+                <button
+                  type="button"
+                  onClick={onOpenLiveMobileTunnel}
+                  title="局域网手机微信扫码直审 (Live Mobile Tunnel)"
+                  className={`p-1 rounded-full transition relative ${
+                    isDarkMode ? 'hover:bg-neutral-800 text-emerald-400' : 'hover:bg-neutral-100 text-emerald-600'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute top-0.5 right-0.5 animate-pulse" />
+                </button>
+              )}
               {onOpenLongImageExport && (
                 <button
                   type="button"

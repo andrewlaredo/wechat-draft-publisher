@@ -26,6 +26,10 @@ import {
   Compass,
   Bot,
   Radio,
+  Smartphone,
+  Zap,
+  Stethoscope,
+  Search,
 } from 'lucide-react';
 import { WeChatAccountConfig } from '../utils/accountManager.ts';
 
@@ -53,6 +57,10 @@ interface HeaderProps {
   onOpenXiaolvshuStudio?: () => void;
   onOpenTrendingRadar?: () => void;
   onOpenAutomationWebhook?: () => void;
+  onOpenLiveMobileTunnel?: () => void;
+  onOpenTrendToDraft?: () => void;
+  onOpenTypographyDoctor?: () => void;
+  onOpenWechatSeo?: () => void;
   accounts?: WeChatAccountConfig[];
   activeAccountId?: string | null;
   onSwitchAccount?: (id: string) => void;
@@ -85,6 +93,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenXiaolvshuStudio,
   onOpenTrendingRadar,
   onOpenAutomationWebhook,
+  onOpenLiveMobileTunnel,
+  onOpenTrendToDraft,
+  onOpenTypographyDoctor,
+  onOpenWechatSeo,
   accounts = [],
   activeAccountId,
   onSwitchAccount,
@@ -250,6 +262,62 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Bot className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden 2xl:inline">自动协同</span>
+          </button>
+        )}
+
+        {/* Trend-to-Draft Pipeline Button */}
+        {onOpenTrendToDraft && (
+          <button
+            onClick={onOpenTrendToDraft}
+            id="btn-header-trend-to-draft"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white shadow-xs border border-amber-500/40 transition"
+            title="一键热点生文全自动流水线 (Trend-to-Draft)：全网热点 -> 选题立意 -> AI正文 -> 商用配图容器 -> 微信物料沙盒 -> 直通草稿箱"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-200 fill-amber-200 animate-pulse" />
+            <span className="hidden xl:inline">热点流水线</span>
+            <span className="hidden sm:inline xl:hidden">流水线</span>
+          </button>
+        )}
+
+        {/* Live Mobile Tunnel Button */}
+        {onOpenLiveMobileTunnel && (
+          <button
+            onClick={onOpenLiveMobileTunnel}
+            id="btn-header-live-mobile"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/70 shadow-xs transition"
+            title="局域网手机真机实时同步审稿 (Live Mobile Tunnel)：手机微信扫一扫直连电脑端，实时热更真机审稿"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span className="hidden xl:inline">真机审稿</span>
+            <span className="hidden sm:inline xl:hidden">真机</span>
+          </button>
+        )}
+
+        {/* Typography & Readability Doctor Button */}
+        {onOpenTypographyDoctor && (
+          <button
+            onClick={onOpenTypographyDoctor}
+            id="btn-header-typography-doctor"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-800 hover:bg-neutral-750 text-cyan-300 border border-cyan-800/60 shadow-xs transition"
+            title="微信排版医生与阅读体验体检：盘古之白空格规范化、标点符号校正与外部死链自动转文末脚注"
+          >
+            <Stethoscope className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden 2xl:inline">排版体检</span>
+            <span className="hidden xl:inline 2xl:hidden">体检</span>
+          </button>
+        )}
+
+        {/* WeChat Search & Top Stories SEO Lab Button */}
+        {onOpenWechatSeo && (
+          <button
+            onClick={onOpenWechatSeo}
+            id="btn-header-wechat-seo"
+            className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-800 hover:bg-neutral-750 text-purple-300 border border-purple-800/60 shadow-xs transition"
+            title="微信搜一搜与看一看 SEO 优化中枢：标题核心词前置、搜索意图词、首段密度与话题标签全域穿透"
+          >
+            <Search className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden 2xl:inline">搜索SEO</span>
+            <span className="hidden xl:inline 2xl:hidden">SEO</span>
           </button>
         )}
 

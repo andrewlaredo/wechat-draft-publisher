@@ -17,6 +17,7 @@ import {
   Filter,
   CheckCircle2,
   Share2,
+  Zap,
 } from 'lucide-react';
 import { TRENDING_ITEMS, TrendingItem, TrendingAngle } from '../data/trendingTopics.ts';
 import {
@@ -32,6 +33,7 @@ interface TrendingRadarModalProps {
   author: string;
   onApplyOutline: (markdown: string, title: string) => void;
   onOpenCalendar?: () => void;
+  onOpenTrendToDraft?: (trend: TrendingItem, angle: TrendingAngle) => void;
 }
 
 export const TrendingRadarModal: React.FC<TrendingRadarModalProps> = ({
@@ -40,6 +42,7 @@ export const TrendingRadarModal: React.FC<TrendingRadarModalProps> = ({
   author,
   onApplyOutline,
   onOpenCalendar,
+  onOpenTrendToDraft,
 }) => {
   const [selectedSource, setSelectedSource] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -396,14 +399,32 @@ export const TrendingRadarModal: React.FC<TrendingRadarModalProps> = ({
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleApplyAngle(angle)}
-                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>以此立意一键载入写作</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => handleApplyAngle(angle)}
+                          className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs font-medium transition flex items-center gap-1.5"
+                          title="将此立意大纲直接填入左侧 Markdown 编辑器中进行人工撰写"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>载入大纲</span>
+                        </button>
+
+                        {onOpenTrendToDraft && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenTrendToDraft(activeTopic, angle);
+                              onClose();
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold shadow-md shadow-orange-950/40 transition flex items-center gap-1.5"
+                            title="一键启动全自动生文流水线 (Trend-to-Draft)：选题切角 -> AI正文 -> 商用配图容器 -> 微信物料沙盒 -> 直通微信草稿箱"
+                          >
+                            <Zap className="w-3.5 h-3.5 text-amber-200 fill-amber-200 animate-pulse" />
+                            <span>全自动流水线生文</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

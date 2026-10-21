@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import axios from 'axios';
 import { createServer as createViteServer } from 'vite';
 import { loadConfig, AppConfig, DEFAULT_CONFIG } from './src/config.ts';
@@ -755,6 +756,385 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).send(e.message);
     }
+  });
+
+  // --- Live Mobile Tunnel (局域网手机真机实时同步审稿) ---
+  let liveMobileArticle = {
+    title: 'FlowDraft 微信排版实时真机预览',
+    author: '创作者',
+    digest: '微信公众号真实手机渲染排版与动效预览',
+    cover: '',
+    html: '<section style="text-align: center; padding: 40px 15px; color: #888888;"><p style="font-size: 15px; margin-bottom: 12px;">📱 正在等待电脑端 FlowDraft 同步内容...</p><p style="font-size: 12px; color: #aaa;">在电脑端编辑文章或点击「真机审稿」，此页面将无需手动刷新即可实时秒级呈现！</p></section>',
+    markdown: '',
+    theme: 'default',
+    updatedAt: Date.now(),
+  };
+
+  const liveSseClients: Array<{ id: string; res: any }> = [];
+
+  function notifyLiveClients() {
+    const payload = JSON.stringify({
+      event: 'update',
+      timestamp: liveMobileArticle.updatedAt,
+      title: liveMobileArticle.title,
+    });
+    liveSseClients.forEach((client) => {
+      try {
+        client.res.write(`data: ${payload}\n\n`);
+      } catch {
+        // Ignored
+      }
+    });
+  }
+
+  // Update live preview content from desktop
+  app.post('/api/live-mobile/update', (req, res) => {
+    try {
+      const { title, author, digest, cover, html, markdown, theme } = req.body;
+      if (title !== undefined) liveMobileArticle.title = title;
+      if (author !== undefined) liveMobileArticle.author = author;
+      if (digest !== undefined) liveMobileArticle.digest = digest;
+      if (cover !== undefined) liveMobileArticle.cover = cover;
+      if (html !== undefined) liveMobileArticle.html = html;
+      if (markdown !== undefined) liveMobileArticle.markdown = markdown;
+      if (theme !== undefined) liveMobileArticle.theme = theme;
+      liveMobileArticle.updatedAt = Date.now();
+
+      notifyLiveClients();
+      res.json({ success: true, updatedAt: liveMobileArticle.updatedAt, clientCount: liveSseClients.length });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Get current live content
+  app.get('/api/live-mobile/content', (_req, res) => {
+    res.json(liveMobileArticle);
+  });
+
+  // SSE Stream for real-time mobile sync
+  app.get('/api/live-mobile/stream', (req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+    res.write(`data: ${JSON.stringify({ event: 'connected', timestamp: Date.now() })}\n\n`);
+    const clientId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    const client = { id: clientId, res };
+    liveSseClients.push(client);
+
+    req.on('close', () => {
+      const idx = liveSseClients.findIndex((c) => c.id === clientId);
+      if (idx !== -1) liveSseClients.splice(idx, 1);
+    });
+  });
+
+  // Get status
+  app.get('/api/live-mobile/status', (_req, res) => {
+    res.json({
+      connectedDevices: liveSseClients.length,
+      updatedAt: liveMobileArticle.updatedAt,
+      title: liveMobileArticle.title,
+    });
+  });
+
+  // Get network IPs for QR code
+  app.get('/api/live-mobile/network-ips', (_req, res) => {
+    const ifaces = os.networkInterfaces();
+    const ips: string[] = [];
+    for (const name of Object.keys(ifaces)) {
+      for (const net of ifaces[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          ips.push(net.address);
+        }
+      }
+    }
+    res.json({ ips, port: PORT });
+  });
+
+  // Real WeChat Mobile Reading HTML page
+  app.get('/preview/live', (_req, res) => {
+    const rawTitle = liveMobileArticle.title || '微信推文真机审稿';
+    const rawAuthor = liveMobileArticle.author || '创作者';
+    const rawHtml = liveMobileArticle.html || '<section style="text-align: center; padding: 40px 15px; color: #888888;"><p style="font-size: 15px; margin-bottom: 12px;">📱 正在等待电脑端 FlowDraft 同步内容...</p><p style="font-size: 12px; color: #aaa;">在电脑端编辑文章或点击「真机审稿」，此页面将无需手动刷新即可实时呈现！</p></section>';
+    const safeTitle = rawTitle.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeAuthor = rawAuthor.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const htmlHead = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title id="page-title">${safeTitle} - 微信真机审稿</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ededed;
+      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    body.dark-mode {
+      background-color: #111111;
+      color: #dfdfdf;
+    }
+    body.dark-mode .wechat-card {
+      background-color: #191919;
+      color: #d1d1d1;
+    }
+    body.dark-mode .article-title {
+      color: #efefef;
+    }
+    body.dark-mode .wechat-bottom-bar {
+      border-top-color: #2a2a2a;
+      color: #888;
+    }
+
+    /* Fixed top floating control bar */
+    .mobile-control-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(24, 24, 27, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #f4f4f5;
+      padding: 8px 14px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .sync-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite;
+    }
+    .status-dot.syncing {
+      background-color: #f59e0b;
+      box-shadow: 0 0 8px #f59e0b;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .control-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-ctrl {
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      color: #e4e4e7;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    /* WeChat Main Article Card */
+    .wechat-card {
+      background-color: #ffffff;
+      padding: 22px 18px 45px;
+      min-height: 100vh;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .article-title {
+      font-size: 22px;
+      font-weight: bold;
+      line-height: 1.4;
+      color: #222222;
+      margin: 0 0 14px 0;
+      word-break: break-word;
+    }
+    .article-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #888888;
+      margin-bottom: 22px;
+    }
+    .meta-account {
+      color: #576b95;
+      font-weight: 500;
+    }
+    .meta-author {
+      color: #666666;
+    }
+    body.dark-mode .meta-author {
+      color: #999999;
+    }
+
+    /* Content */
+    #article-content {
+      font-size: 16px;
+      line-height: 1.75;
+      word-break: break-word;
+    }
+    #article-content img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    /* WeChat Bottom Bar Simulation */
+    .wechat-bottom-bar {
+      margin-top: 50px;
+      padding-top: 24px;
+      border-top: 1px solid #eeeeee;
+      font-size: 13px;
+      color: #8c8c8c;
+    }
+    .bottom-row-1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .read-origin {
+      color: #576b95;
+      text-decoration: none;
+    }
+    .read-count {
+      color: #888888;
+    }
+    .bottom-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 20px;
+    }
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #555555;
+    }
+    body.dark-mode .action-btn {
+      color: #aaaaaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="mobile-control-bar">
+    <div class="sync-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="sync-text">已连接真机实时审稿隧道</span>
+    </div>
+    <div class="control-actions">
+      <button class="btn-ctrl" onclick="toggleDarkMode()">🌓 暗黑模式</button>
+      <button class="btn-ctrl" onclick="manualRefresh()">🔄 刷新</button>
+    </div>
+  </div>
+
+  <div class="wechat-card">
+    <h1 class="article-title" id="article-title">${safeTitle}</h1>
+    <div class="article-meta">
+      <span class="meta-account" id="account-name">微信公众号</span>
+      <span class="meta-author" id="article-author">${safeAuthor}</span>
+      <span class="meta-date">今天</span>
+      <span class="meta-origin">原创</span>
+    </div>
+
+    <div id="article-content">`;
+
+    const htmlTail = `</div>
+
+    <div class="wechat-bottom-bar">
+      <div class="bottom-row-1">
+        <span class="read-origin">阅读原文</span>
+        <span class="read-count">阅读 1.6万</span>
+      </div>
+      <div class="bottom-actions">
+        <span class="action-btn">❤️ 赞 520</span>
+        <span class="action-btn">✨ 在看 188</span>
+        <span class="action-btn">💬 留言 36</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function renderArticle(data) {
+      if (!data) return;
+      document.getElementById('page-title').textContent = (data.title || '未命名推文') + ' - 微信真机审稿';
+      document.getElementById('article-title').textContent = data.title || '未命名推文';
+      document.getElementById('article-author').textContent = data.author || '创作者';
+      if (data.html) {
+        document.getElementById('article-content').innerHTML = data.html;
+      }
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    function flashSyncBadge() {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('sync-text');
+      dot.classList.add('syncing');
+      text.textContent = '内容已实时同步';
+      setTimeout(() => {
+        dot.classList.remove('syncing');
+        text.textContent = '已连接实时隧道';
+      }, 1500);
+    }
+
+    async function manualRefresh() {
+      try {
+        const res = await fetch('/api/live-mobile/content');
+        const json = await res.json();
+        renderArticle(json);
+        flashSyncBadge();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    try {
+      const evtSource = new EventSource('/api/live-mobile/stream');
+      evtSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.event === 'update') {
+            manualRefresh();
+          }
+        } catch (err) {}
+      };
+      evtSource.onerror = () => {
+        document.getElementById('sync-text').textContent = '重新连接中...';
+      };
+      evtSource.onopen = () => {
+        document.getElementById('sync-text').textContent = '已连接真机实时审稿隧道';
+      };
+    } catch (e) {
+      setInterval(manualRefresh, 2500);
+    }
+  </script>
+</body>
+</html>`;
+
+    const htmlPage = htmlHead + rawHtml + htmlTail;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(htmlPage);
   });
 
   // Vite middleware for development

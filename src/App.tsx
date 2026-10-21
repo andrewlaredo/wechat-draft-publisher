@@ -30,6 +30,11 @@ import { XiaolvshuStudioModal } from './components/XiaolvshuStudioModal.tsx';
 import { TrendingRadarModal } from './components/TrendingRadarModal.tsx';
 import { AutomationWebhookModal } from './components/AutomationWebhookModal.tsx';
 import { MultiAccountBroadcastModal } from './components/MultiAccountBroadcastModal.tsx';
+import { LiveMobileTunnelModal } from './components/LiveMobileTunnelModal.tsx';
+import { TrendToDraftModal } from './components/TrendToDraftModal.tsx';
+import { TypographyDoctorModal } from './components/TypographyDoctorModal.tsx';
+import { WechatSeoModal } from './components/WechatSeoModal.tsx';
+import { TrendingItem, TrendingAngle } from './data/trendingTopics.ts';
 import { performSafetyAudit } from './utils/safetyAudit.ts';
 import { upsertEditorialTask, EditorialTask } from './utils/editorialManager.ts';
 import { broadcastPublishNotification } from './utils/webhookManager.ts';
@@ -55,6 +60,9 @@ import {
   Compass,
   Bot,
   Radio,
+  Zap,
+  Stethoscope,
+  Search,
 } from 'lucide-react';
 import {
   WeChatAccountConfig,
@@ -316,6 +324,12 @@ export default function App() {
   const [isTrendingRadarOpen, setIsTrendingRadarOpen] = useState<boolean>(false);
   const [isAutomationWebhookOpen, setIsAutomationWebhookOpen] = useState<boolean>(false);
   const [isMultiAccountBroadcastOpen, setIsMultiAccountBroadcastOpen] = useState<boolean>(false);
+  const [isLiveMobileTunnelOpen, setIsLiveMobileTunnelOpen] = useState<boolean>(false);
+  const [isTrendToDraftOpen, setIsTrendToDraftOpen] = useState<boolean>(false);
+  const [trendToDraftInitialTrend, setTrendToDraftInitialTrend] = useState<TrendingItem | null>(null);
+  const [trendToDraftInitialAngle, setTrendToDraftInitialAngle] = useState<TrendingAngle | null>(null);
+  const [isTypographyDoctorOpen, setIsTypographyDoctorOpen] = useState<boolean>(false);
+  const [isWechatSeoOpen, setIsWechatSeoOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -454,6 +468,21 @@ export default function App() {
         setNewspicCaption(localResult.newspicCaption);
       }
       setScannedImages(localResult.metadata.images || []);
+
+      // Real-time synchronization to Live Mobile Tunnel SSE stream
+      safeFetchJson('/api/live-mobile/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: localResult.metadata.title || metadata.title,
+          author: localResult.metadata.author || metadata.author,
+          digest: localResult.metadata.digest || metadata.digest,
+          cover: localResult.metadata.cover || metadata.cover,
+          html: localResult.inlinedHtml,
+          markdown,
+          theme: activeTheme,
+        }),
+      }).catch(() => {});
     } catch (localErr) {
       console.warn('Local render fallback error:', localErr);
     }
@@ -1053,6 +1082,28 @@ export default function App() {
       action: () => setIsAutomationWebhookOpen(true),
     },
     {
+      id: 'cmd-trend-to-draft',
+      title: '一键热点生文全自动流水线 (Trend-to-Draft)',
+      subtitle: '热点情报 ➔ 爆款切角 ➔ 深度正文 ➔ 商用配图容器 ➔ 微信物料沙盒 ➔ 一键直达草稿箱',
+      category: 'operation',
+      icon: <Zap className="w-4 h-4 text-amber-400" />,
+      keywords: ['流水线', '热点生文', '全自动', 'pipeline', 'trend', 'ai', '快速写作'],
+      action: () => {
+        setTrendToDraftInitialTrend(null);
+        setTrendToDraftInitialAngle(null);
+        setIsTrendToDraftOpen(true);
+      },
+    },
+    {
+      id: 'cmd-live-mobile',
+      title: '局域网手机真机实时同步审稿 (Live Mobile Tunnel)',
+      subtitle: '手机微信扫一扫直连电脑端，实时热更真机审稿，支持深浅色模式与像素级动效核验',
+      category: 'view',
+      icon: <Smartphone className="w-4 h-4 text-emerald-400" />,
+      keywords: ['真机', '手机', '审稿', '扫码', '隧道', 'tunnel', 'live', 'mobile', '预览'],
+      action: () => setIsLiveMobileTunnelOpen(true),
+    },
+    {
       id: 'cmd-broadcast',
       title: '多公众号一键矩阵发布 (Multi-Account Broadcast)',
       subtitle: '一次性批量向多个公众号草稿箱分发，支持防重定制与实时管道监控',
@@ -1060,6 +1111,24 @@ export default function App() {
       icon: <Radio className="w-4 h-4 text-teal-400" />,
       keywords: ['矩阵', '多号', '分发', '广播', '批量', 'broadcast', 'matrix', '群发'],
       action: () => setIsMultiAccountBroadcastOpen(true),
+    },
+    {
+      id: 'cmd-typography-doctor',
+      title: '微信排版医生与阅读体验体检 (Typography Doctor)',
+      subtitle: '盘古之白空格规范化、标点符号校正与微信外部死链自动转文末优雅脚注',
+      category: 'format',
+      icon: <Stethoscope className="w-4 h-4 text-cyan-400" />,
+      keywords: ['排版', '医生', '体检', '盘古空格', '脚注', '死链', '外链', 'typography', 'doctor'],
+      action: () => setIsTypographyDoctorOpen(true),
+    },
+    {
+      id: 'cmd-wechat-seo',
+      title: '微信搜一搜与看一看 SEO 优化中枢 (WeChat Search SEO Lab)',
+      subtitle: '标题核心词前置率、搜索意图词、首段密度与话题标签全域穿透',
+      category: 'operation',
+      icon: <Search className="w-4 h-4 text-purple-400" />,
+      keywords: ['seo', '搜一搜', '看一看', '搜索', '话题', '标签', '公域', '流量'],
+      action: () => setIsWechatSeoOpen(true),
     },
     {
       id: 'cmd-longimage',
@@ -1170,6 +1239,14 @@ export default function App() {
         onOpenTrendingRadar={() => setIsTrendingRadarOpen(true)}
         onOpenAutomationWebhook={() => setIsAutomationWebhookOpen(true)}
         onOpenMultiAccountBroadcast={() => setIsMultiAccountBroadcastOpen(true)}
+        onOpenLiveMobileTunnel={() => setIsLiveMobileTunnelOpen(true)}
+        onOpenTrendToDraft={() => {
+          setTrendToDraftInitialTrend(null);
+          setTrendToDraftInitialAngle(null);
+          setIsTrendToDraftOpen(true);
+        }}
+        onOpenTypographyDoctor={() => setIsTypographyDoctorOpen(true)}
+        onOpenWechatSeo={() => setIsWechatSeoOpen(true)}
         accounts={accounts}
         activeAccountId={activeAccountId}
         onSwitchAccount={handleSwitchAccount}
@@ -1222,6 +1299,14 @@ export default function App() {
         onOpenTrendingRadar={() => setIsTrendingRadarOpen(true)}
         onOpenAutomationWebhook={() => setIsAutomationWebhookOpen(true)}
         onOpenMultiAccountBroadcast={() => setIsMultiAccountBroadcastOpen(true)}
+        onOpenLiveMobileTunnel={() => setIsLiveMobileTunnelOpen(true)}
+        onOpenTrendToDraft={() => {
+          setTrendToDraftInitialTrend(null);
+          setTrendToDraftInitialAngle(null);
+          setIsTrendToDraftOpen(true);
+        }}
+        onOpenTypographyDoctor={() => setIsTypographyDoctorOpen(true)}
+        onOpenWechatSeo={() => setIsWechatSeoOpen(true)}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}
@@ -1260,6 +1345,7 @@ export default function App() {
               newspicCaption={newspicCaption}
               scannedImages={scannedImages}
               onOpenLongImageExport={() => setIsLongImageExportOpen(true)}
+              onOpenLiveMobileTunnel={() => setIsLiveMobileTunnelOpen(true)}
             />
           </div>
         )}
@@ -1613,6 +1699,11 @@ export default function App() {
           setIsTrendingRadarOpen(false);
           setIsEditorialCalendarOpen(true);
         }}
+        onOpenTrendToDraft={(trend, angle) => {
+          setTrendToDraftInitialTrend(trend);
+          setTrendToDraftInitialAngle(angle);
+          setIsTrendToDraftOpen(true);
+        }}
       />
 
       {/* Automation & Team Webhooks Modal */}
@@ -1644,6 +1735,68 @@ export default function App() {
         }}
         onOpenSettingsAccounts={() => setIsSettingsOpen(true)}
         onRefreshHistory={fetchHistory}
+        showToast={showToast}
+      />
+
+      {/* Live Mobile Tunnel Modal (局域网手机真机实时同步审稿) */}
+      <LiveMobileTunnelModal
+        isOpen={isLiveMobileTunnelOpen}
+        onClose={() => setIsLiveMobileTunnelOpen(false)}
+        title={metadata.title}
+        author={metadata.author}
+        digest={metadata.digest}
+        cover={metadata.cover}
+        markdown={markdown}
+        inlinedHtml={inlinedHtml}
+        theme={activeTheme}
+        showToast={showToast}
+      />
+
+      {/* Trend-to-Draft Pipeline Modal (一键热点生文全自动流水线) */}
+      <TrendToDraftModal
+        isOpen={isTrendToDraftOpen}
+        onClose={() => setIsTrendToDraftOpen(false)}
+        initialTrend={trendToDraftInitialTrend}
+        initialAngle={trendToDraftInitialAngle}
+        authorName={metadata.author || '创作者'}
+        onLoadIntoEditor={(newMd, newTitle, newCover, newDigest) => {
+          setMarkdown(newMd);
+          setMetadata((prev) => ({
+            ...prev,
+            title: newTitle,
+            cover: newCover || prev.cover,
+            digest: newDigest,
+          }));
+        }}
+        onOpenMatrixBroadcast={() => setIsMultiAccountBroadcastOpen(true)}
+        onOpenCalendar={() => setIsEditorialCalendarOpen(true)}
+        showToast={showToast}
+      />
+
+      {/* Typography & Readability Doctor Modal (微信排版医生与外链转脚注) */}
+      <TypographyDoctorModal
+        isOpen={isTypographyDoctorOpen}
+        onClose={() => setIsTypographyDoctorOpen(false)}
+        markdown={markdown}
+        onApplyMarkdown={(newMarkdown) => {
+          setMarkdown(newMarkdown);
+          showToast('✨ 已应用智能规范化排版与脚注！');
+        }}
+      />
+
+      {/* WeChat Search & Top Stories SEO Lab Modal (微信搜一搜与看一看优化中枢) */}
+      <WechatSeoModal
+        isOpen={isWechatSeoOpen}
+        onClose={() => setIsWechatSeoOpen(false)}
+        title={metadata.title}
+        digest={metadata.digest}
+        markdown={markdown}
+        onApplyTitle={(newTitle) => {
+          setMetadata((prev) => ({ ...prev, title: newTitle }));
+        }}
+        onApplyMarkdown={(newMarkdown) => {
+          setMarkdown(newMarkdown);
+        }}
         showToast={showToast}
       />
 

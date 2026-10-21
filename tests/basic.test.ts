@@ -162,4 +162,30 @@ const my_var: string = "hello";
     expect(result).not.toContain('<section');
     expect(result).not.toContain('style=');
   });
+
+  it('12. 微信搜一搜 SEO 诊断器 analyzeWechatSeo 应能正确计算得分与提取关键词', async () => {
+    const { analyzeWechatSeo } = await import('../src/utils/wechatSeoAnalyzer.ts');
+    const report = analyzeWechatSeo({
+      title: '微信公众号自动化发布全流程实战指南',
+      markdown: '在当前快节奏的内容消费场景下，微信公众号自动化发布能够极大提高效率。## 核心原理\n\n通过接口自动化。\n\n#微信排版 #自动化',
+      digest: '探索如何通过微信接口实现全自动草稿箱推送与排版。',
+    });
+
+    expect(report.score).toBeGreaterThan(0);
+    expect(report.titleFrontLoaded).toBe(true);
+    expect(typeof report.firstParagraphKeywordDensity).toBe('number');
+    expect(report.suggestedHashtags.length).toBeGreaterThan(0);
+    expect(report.recommendedTitles.length).toBeGreaterThan(0);
+  });
+
+  it('13. 微信排版体检医生 diagnoseTypography 应能准确评估阅读舒适度与盘古空格', async () => {
+    const { diagnoseTypography, autoFixTypography } = await import('../src/utils/typographyDoctor.ts');
+    const md = '这是中文和English混杂无空格的内容。另外还有超长的一段话。';
+    const report = diagnoseTypography(md);
+    expect(report.overallScore).toBeGreaterThan(0);
+    expect(report.wordCount).toBeGreaterThan(0);
+
+    const fixed = autoFixTypography(md);
+    expect(fixed.fixedMarkdown).toContain('中文和 English 混杂');
+  });
 });

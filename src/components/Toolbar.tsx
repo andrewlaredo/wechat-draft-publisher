@@ -20,6 +20,9 @@ import {
   Compass,
   Bot,
   Radio,
+  Zap,
+  Stethoscope,
+  Search,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -59,6 +62,10 @@ interface ToolbarProps {
   onOpenTrendingRadar?: () => void;
   onOpenAutomationWebhook?: () => void;
   onOpenMultiAccountBroadcast?: () => void;
+  onOpenLiveMobileTunnel?: () => void;
+  onOpenTrendToDraft?: () => void;
+  onOpenTypographyDoctor?: () => void;
+  onOpenWechatSeo?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -108,6 +115,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenTrendingRadar,
   onOpenAutomationWebhook,
   onOpenMultiAccountBroadcast,
+  onOpenLiveMobileTunnel,
+  onOpenTrendToDraft,
+  onOpenTypographyDoctor,
+  onOpenWechatSeo,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -427,6 +438,66 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     </button>
                   )}
 
+                  {/* Open Trend-to-Draft Pipeline */}
+                  {onOpenTrendToDraft && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-trend-to-draft"
+                      onClick={onOpenTrendToDraft}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-amber-300 hover:text-amber-200 border border-amber-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="一键热点生文全自动流水线 (Trend-to-Draft)：全网热点 -> 选题立意 -> AI正文 -> 商用配图容器 -> 微信物料沙盒 -> 直通草稿箱"
+                    >
+                      <Zap className="w-3 h-3 text-amber-400 fill-amber-400 animate-pulse" />
+                      <span className="hidden sm:inline">热点流水线</span>
+                      <span className="sm:hidden">流水线</span>
+                    </button>
+                  )}
+
+                  {/* Open Live Mobile Tunnel */}
+                  {onOpenLiveMobileTunnel && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-live-mobile"
+                      onClick={onOpenLiveMobileTunnel}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-emerald-300 hover:text-emerald-200 border border-emerald-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="局域网手机真机实时同步审稿 (Live Mobile Tunnel)：手机微信扫一扫直连电脑端，实时热更真机审稿"
+                    >
+                      <Smartphone className="w-3 h-3 text-emerald-400 animate-pulse" />
+                      <span className="hidden sm:inline">真机审稿</span>
+                      <span className="sm:hidden">真机</span>
+                    </button>
+                  )}
+
+                  {/* Open Typography & Readability Doctor */}
+                  {onOpenTypographyDoctor && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-typography-doctor"
+                      onClick={onOpenTypographyDoctor}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-cyan-300 hover:text-cyan-200 border border-cyan-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="微信排版医生与阅读体验体检：盘古空格规范、标点校正与微信外链自动转文末脚注"
+                    >
+                      <Stethoscope className="w-3 h-3 text-cyan-400" />
+                      <span className="hidden sm:inline">排版体检</span>
+                      <span className="sm:hidden">体检</span>
+                    </button>
+                  )}
+
+                  {/* Open WeChat Search & Top Stories SEO */}
+                  {onOpenWechatSeo && (
+                    <button
+                      type="button"
+                      id="btn-toolbar-wechat-seo"
+                      onClick={onOpenWechatSeo}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-750 text-purple-300 hover:text-purple-200 border border-purple-800/60 text-xs font-medium transition shrink-0 shadow-xs"
+                      title="微信搜一搜与看一看 SEO 优化中枢：标题核心词前置、意图词匹配、首段密度与话题标签全域穿透"
+                    >
+                      <Search className="w-3 h-3 text-purple-400" />
+                      <span className="hidden sm:inline">搜索SEO</span>
+                      <span className="sm:hidden">SEO</span>
+                    </button>
+                  )}
+
                   {/* Open Global Command Palette */}
                   {onOpenCommandPalette && (
                     <button
@@ -633,6 +704,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               title="一键将排版文章导出为高清长图（手机仿真/长微博/海报）"
             >
               <FileImage className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onOpenLiveMobileTunnel && (
+            <button
+              type="button"
+              onClick={onOpenLiveMobileTunnel}
+              id="btn-toolbar-quick-tunnel"
+              className="p-1.5 rounded-md transition text-emerald-400 hover:text-emerald-300 hover:bg-neutral-700/60 ml-0.5 relative"
+              title="局域网手机真机实时同步审稿 (Live Mobile Tunnel)：手机扫码即刻热更真机审稿"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute top-1 right-1 animate-pulse" />
             </button>
           )}
         </div>

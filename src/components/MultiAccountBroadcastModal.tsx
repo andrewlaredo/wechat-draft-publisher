@@ -408,7 +408,7 @@ export const MultiAccountBroadcastModal: React.FC<MultiAccountBroadcastModalProp
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold text-neutral-100">多公众号一键矩阵发布 (Multi-Account Broadcast)</h2>
                 <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono font-medium">
-                  矩阵分发中枢 · P0
+                  矩阵分发中枢
                 </span>
               </div>
               <p className="text-xs text-neutral-400 mt-0.5">
