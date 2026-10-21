@@ -26,27 +26,16 @@ export function computeArticleHash(
   return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
 }
 
+import { getCacheFilePath, safeReadJsonCache, safeWriteJsonCache } from './cacheDir.ts';
+
 export function getPublishCacheFilePath(customPath?: string): string {
   if (customPath) return path.resolve(customPath);
-  const cacheDir = path.resolve(process.cwd(), '.cache');
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
-  }
-  return path.join(cacheDir, 'published.json');
+  return getCacheFilePath('published.json');
 }
 
 export function loadPublishCache(cachePath?: string): PublishCache {
   const filePath = getPublishCacheFilePath(cachePath);
-  if (!fs.existsSync(filePath)) {
-    return { records: {} };
-  }
-  try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const data = JSON.parse(raw);
-    return data && typeof data.records === 'object' ? data : { records: {} };
-  } catch {
-    return { records: {} };
-  }
+  return safeReadJsonCache<PublishCache>(filePath, { records: {} });
 }
 
 export function checkIsPublished(
@@ -54,7 +43,7 @@ export function checkIsPublished(
   cachePath?: string
 ): { isPublished: boolean; record?: PublishRecord } {
   const cache = loadPublishCache(cachePath);
-  if (cache.records[hash]) {
+  if (cache.records && cache.records[hash]) {
     return { isPublished: true, record: cache.records[hash] };
   }
   return { isPublished: false };
@@ -63,10 +52,7 @@ export function checkIsPublished(
 export function savePublishRecord(record: PublishRecord, cachePath?: string): void {
   const filePath = getPublishCacheFilePath(cachePath);
   const cache = loadPublishCache(cachePath);
+  if (!cache.records) cache.records = {};
   cache.records[record.hash] = record;
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(cache, null, 2), 'utf8');
-  } catch (err) {
-    console.error('Failed to save publish record cache:', err);
-  }
+  safeWriteJsonCache(filePath, cache);
 }

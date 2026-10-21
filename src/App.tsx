@@ -31,6 +31,7 @@ import { TrendingRadarModal } from './components/TrendingRadarModal.tsx';
 import { AutomationWebhookModal } from './components/AutomationWebhookModal.tsx';
 import { MultiAccountBroadcastModal } from './components/MultiAccountBroadcastModal.tsx';
 import { LiveMobileTunnelModal } from './components/LiveMobileTunnelModal.tsx';
+import { MobileLiveReader } from './components/MobileLiveReader.tsx';
 import { TrendToDraftModal } from './components/TrendToDraftModal.tsx';
 import { TypographyDoctorModal } from './components/TypographyDoctorModal.tsx';
 import { WechatSeoModal } from './components/WechatSeoModal.tsx';
@@ -83,6 +84,22 @@ const LOCAL_STORAGE_DRAFT_KEY = 'wechat_draft_auto_save_v1';
 const LOCAL_STORAGE_CONFIG_KEY = 'wechat_publisher_client_config_v1';
 
 export default function App() {
+  // Check if opening in standalone mobile review mode (?preview=live or #preview-live or pathname /preview/live)
+  const isStandaloneLivePreview = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    return (
+      urlParams.get('preview') === 'live' ||
+      window.location.hash.includes('preview-live') ||
+      window.location.hash.includes('preview/live') ||
+      window.location.pathname.endsWith('/preview/live')
+    );
+  }, []);
+
+  if (isStandaloneLivePreview) {
+    return <MobileLiveReader />;
+  }
+
   // State: Content & Meta restored from LocalStorage or default sample
   const [markdown, setMarkdown] = useState<string>(() => {
     try {
@@ -469,19 +486,26 @@ export default function App() {
       }
       setScannedImages(localResult.metadata.images || []);
 
-      // Real-time synchronization to Live Mobile Tunnel SSE stream
+      // Real-time synchronization to Live Mobile Tunnel SSE stream & local cache
+      const syncPayload = {
+        title: localResult.metadata.title || metadata.title,
+        author: localResult.metadata.author || metadata.author,
+        digest: localResult.metadata.digest || metadata.digest,
+        cover: localResult.metadata.cover || metadata.cover,
+        html: localResult.inlinedHtml,
+        markdown,
+        theme: activeTheme,
+        updatedAt: Date.now(),
+      };
+
+      try {
+        localStorage.setItem('wechat_live_mobile_article', JSON.stringify(syncPayload));
+      } catch {}
+
       safeFetchJson('/api/live-mobile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: localResult.metadata.title || metadata.title,
-          author: localResult.metadata.author || metadata.author,
-          digest: localResult.metadata.digest || metadata.digest,
-          cover: localResult.metadata.cover || metadata.cover,
-          html: localResult.inlinedHtml,
-          markdown,
-          theme: activeTheme,
-        }),
+        body: JSON.stringify(syncPayload),
       }).catch(() => {});
     } catch (localErr) {
       console.warn('Local render fallback error:', localErr);
@@ -1716,6 +1740,7 @@ export default function App() {
         markdown={markdown}
         inlinedHtml={inlinedHtml}
         charCount={charCount}
+        onOpenLiveMobileTunnel={() => setIsLiveMobileTunnelOpen(true)}
       />
 
       {/* Multi-Account Matrix Broadcast Studio Modal */}

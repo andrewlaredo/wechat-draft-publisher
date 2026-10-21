@@ -8,6 +8,8 @@ export interface TokenCacheData {
   expires_at: number; // Unix timestamp in ms
 }
 
+import { getCacheFilePath, safeReadJsonCache, safeWriteJsonCache } from '../utils/cacheDir.ts';
+
 export class WeChatAuth {
   private static inflightRequests: Map<string, Promise<string>> = new Map();
   private appId: string;
@@ -15,16 +17,16 @@ export class WeChatAuth {
   private proxyUrl?: string;
   private tokenCachePath: string;
 
-  constructor(appId: string, appSecret: string, proxyUrl?: string, tokenCachePath = '.cache/access_token.json') {
+  constructor(appId: string, appSecret: string, proxyUrl?: string, tokenCachePath?: string) {
     this.appId = appId.trim();
     this.appSecret = appSecret.trim();
     this.proxyUrl = proxyUrl?.trim();
-    this.tokenCachePath = path.resolve(tokenCachePath);
+    this.tokenCachePath = tokenCachePath ? path.resolve(tokenCachePath) : getCacheFilePath('access_token.json');
   }
 
-  public static clearCachedToken(tokenCachePath = '.cache/access_token.json'): void {
+  public static clearCachedToken(tokenCachePath?: string): void {
     try {
-      const fullPath = path.resolve(tokenCachePath);
+      const fullPath = tokenCachePath ? path.resolve(tokenCachePath) : getCacheFilePath('access_token.json');
       if (fs.existsSync(fullPath)) {
         fs.unlinkSync(fullPath);
         logger.debug(`已清除失效的 Token 缓存: ${fullPath}`);
@@ -35,38 +37,21 @@ export class WeChatAuth {
   }
 
   private readCache(): TokenCacheData | null {
-    try {
-      if (!fs.existsSync(this.tokenCachePath)) {
-        return null;
-      }
-      const raw = fs.readFileSync(this.tokenCachePath, 'utf8');
-      const data: TokenCacheData = JSON.parse(raw);
-      if (data && data.access_token && typeof data.expires_at === 'number') {
-        return data;
-      }
-      return null;
-    } catch {
-      return null;
+    const data = safeReadJsonCache<TokenCacheData | null>(this.tokenCachePath, null);
+    if (data && data.access_token && typeof data.expires_at === 'number') {
+      return data;
     }
+    return null;
   }
 
   private writeCache(token: string, expiresInSeconds: number): void {
-    try {
-      const dir = path.dirname(this.tokenCachePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      // Cache expires 5 minutes earlier to be safe
-      const safeExpiresInMs = Math.max(expiresInSeconds - 300, 60) * 1000;
-      const cacheData: TokenCacheData = {
-        access_token: token,
-        expires_at: Date.now() + safeExpiresInMs,
-      };
-      fs.writeFileSync(this.tokenCachePath, JSON.stringify(cacheData, null, 2), 'utf8');
-      logger.debug(`Token 已缓存至 ${this.tokenCachePath}，将在 ${new Date(cacheData.expires_at).toLocaleTimeString()} 前过期`);
-    } catch (err: any) {
-      logger.warn(`写入 Token 缓存文件失败: ${err.message}`);
-    }
+    const safeExpiresInMs = Math.max(expiresInSeconds - 300, 60) * 1000;
+    const cacheData: TokenCacheData = {
+      access_token: token,
+      expires_at: Date.now() + safeExpiresInMs,
+    };
+    safeWriteJsonCache(this.tokenCachePath, cacheData);
+    logger.debug(`Token 已缓存至 ${this.tokenCachePath}，将在 ${new Date(cacheData.expires_at).toLocaleTimeString()} 前过期`);
   }
 
   public clearCache(): void {

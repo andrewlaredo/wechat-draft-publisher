@@ -30,12 +30,14 @@ export interface AppConfig {
   };
 }
 
+import { getCacheFilePath } from './utils/cacheDir.ts';
+
 export const DEFAULT_CONFIG: AppConfig = {
   wechat: {
     app_id: '',
     app_secret: '',
     proxy_url: '',
-    token_cache: '.cache/access_token.json',
+    token_cache: getCacheFilePath('access_token.json'),
   },
   publish: {
     author: '公众号作者',
@@ -89,7 +91,7 @@ export function loadConfig(options: {
 
   // 2.5 Load cached runtime config if exists (.cache/runtime-config.json)
   let runtimeConfig: any = {};
-  const runtimeConfigPath = path.resolve(process.cwd(), '.cache/runtime-config.json');
+  const runtimeConfigPath = getCacheFilePath('runtime-config.json');
   if (fs.existsSync(runtimeConfigPath)) {
     try {
       runtimeConfig = JSON.parse(fs.readFileSync(runtimeConfigPath, 'utf8')) || {};

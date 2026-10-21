@@ -3,17 +3,15 @@ import path from 'path';
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'step';
 
+import { getCacheFilePath } from './cacheDir.ts';
+
 class Logger {
   private verbose = false;
   private logFilePath: string | null = null;
 
   constructor() {
     try {
-      const cacheDir = path.resolve(process.cwd(), '.cache');
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir, { recursive: true });
-      }
-      this.logFilePath = path.join(cacheDir, 'publish.log');
+      this.logFilePath = getCacheFilePath('publish.log');
     } catch {
       // ignore in browser/restricted env
     }

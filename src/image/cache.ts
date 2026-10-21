@@ -12,34 +12,20 @@ export interface CachedMediaItem {
   cached_at: string;
 }
 
-const CACHE_FILE = path.resolve(process.cwd(), '.cache/media_cache.json');
+import { getCacheFilePath, safeReadJsonCache, safeWriteJsonCache } from '../utils/cacheDir.ts';
 
-function ensureCacheDir() {
-  const dir = path.dirname(CACHE_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+export function getMediaCacheFilePath(): string {
+  return getCacheFilePath('media_cache.json');
 }
 
 export function loadMediaCache(): Record<string, CachedMediaItem> {
-  try {
-    if (fs.existsSync(CACHE_FILE)) {
-      const data = fs.readFileSync(CACHE_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (err: any) {
-    logger.warn(`读取素材缓存失败: ${err.message}`);
-  }
-  return {};
+  const filePath = getMediaCacheFilePath();
+  return safeReadJsonCache<Record<string, CachedMediaItem>>(filePath, {});
 }
 
 export function saveMediaCache(cache: Record<string, CachedMediaItem>) {
-  try {
-    ensureCacheDir();
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2), 'utf-8');
-  } catch (err: any) {
-    logger.warn(`写入素材缓存失败: ${err.message}`);
-  }
+  const filePath = getMediaCacheFilePath();
+  safeWriteJsonCache(filePath, cache);
 }
 
 export function computeBufferHash(buffer: Buffer): string {

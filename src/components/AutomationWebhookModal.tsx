@@ -37,6 +37,7 @@ interface AutomationWebhookModalProps {
   markdown: string;
   inlinedHtml: string;
   charCount: number;
+  onOpenLiveMobileTunnel?: () => void;
 }
 
 export const AutomationWebhookModal: React.FC<AutomationWebhookModalProps> = ({
@@ -48,6 +49,7 @@ export const AutomationWebhookModal: React.FC<AutomationWebhookModalProps> = ({
   markdown,
   inlinedHtml,
   charCount,
+  onOpenLiveMobileTunnel,
 }) => {
   const [activeTab, setActiveTab] = useState<'webhooks' | 'qrcode' | 'scheduler' | 'backup'>('webhooks');
   const [webhooks, setWebhooks] = useState<WebhookConfig[]>(() => getStoredWebhooks());
@@ -403,56 +405,58 @@ export const AutomationWebhookModal: React.FC<AutomationWebhookModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: Mobile QR-Code Quick Preview */}
+          {/* TAB 2: Mobile Review Integration */}
           {activeTab === 'qrcode' && (
-            <div className="max-w-xl mx-auto space-y-5 text-center py-4">
+            <div className="max-w-xl mx-auto space-y-5 text-center py-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-sky-600 text-white flex items-center justify-center mx-auto shadow-lg">
+                <Smartphone className="w-8 h-8 animate-pulse" />
+              </div>
+
               <div>
-                <h3 className="text-base font-bold text-neutral-100 flex items-center justify-center gap-2">
-                  <Smartphone className="w-5 h-5 text-emerald-400" />
-                  <span>手机端微信真机扫码临时审稿</span>
+                <h3 className="text-base font-bold text-neutral-100">
+                  局域网真机实时同步审稿已升级就绪
                 </h3>
-                <p className="text-xs text-neutral-400 mt-1">
-                  无需登录微信公众号后台、无需占用群发白名单，团队主编直接打开微信扫一扫，即刻在真机端核对排版细节
+                <p className="text-xs text-neutral-400 mt-1.5 max-w-md mx-auto">
+                  团队手机微信扫码审稿现已全面升级为专属的「局域网手机真机实时同步审稿 (Live Mobile Tunnel)」，支持微信原生扫一扫、SSE 实时双向热更新、局域网 IP 自动侦测与暗黑夜间模式比对。
                 </p>
               </div>
 
-              {/* QR Code Container */}
-              <div className="w-64 h-64 mx-auto p-3 bg-white rounded-2xl shadow-2xl border-4 border-neutral-700 flex items-center justify-center">
-                <div
-                  className="w-full h-full"
-                  dangerouslySetInnerHTML={{ __html: qrCodeSvg }}
-                />
-              </div>
-
-              {/* Preview Info */}
-              <div className="p-3 rounded-xl bg-neutral-850 border border-neutral-750 text-left text-xs space-y-1">
-                <div className="font-semibold text-neutral-200">
-                  当前审稿推文：《{title || '未命名文章'}》
+              {/* Action Cards */}
+              <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 text-left text-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-neutral-200">当前排版推文：《{title || '未命名文章'}》</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    🟢 实时数据通道就绪
+                  </span>
                 </div>
-                <div className="text-neutral-400">
-                  作者：{author || '创作者'} · 统计字数：{charCount} 字 · 格式：微信高兼容内联富文本
+                <div className="text-neutral-400 text-[11px]">
+                  作者：{author || '创作者'} · 正文字数：{charCount} 字 · 排版引擎：微信深度内联 CSS
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                {onOpenLiveMobileTunnel && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenLiveMobileTunnel();
+                    }}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white text-xs font-semibold shadow-lg transition flex items-center justify-center gap-2"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span>立即打开局域网真机实时审稿隧道</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={handleCopyPreviewLink}
-                  className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs font-medium transition flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs font-medium transition flex items-center justify-center gap-1.5"
                 >
                   {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  <span>{copiedLink ? '已复制页面链接' : '复制预览链接'}</span>
+                  <span>{copiedLink ? '已复制页面链接' : '复制审稿直达链接'}</span>
                 </button>
-
-                <a
-                  href={previewHtmlDataUri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition flex items-center gap-1.5"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>新窗口全屏预览 HTML</span>
-                </a>
               </div>
             </div>
           )}

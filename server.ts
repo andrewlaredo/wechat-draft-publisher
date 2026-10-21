@@ -21,6 +21,7 @@ import { createMarkdownRenderer } from './src/markdown/renderer.ts';
 import { inlineWechatStyles } from './src/markdown/style.ts';
 import { generateArticle, testAiConnectivity, PROVIDER_PRESETS } from './src/ai/generator.ts';
 import { registerExtractArticleRoute } from './src/wechat/extractArticle.ts';
+import { getCacheFilePath, safeReadJsonCache, safeWriteJsonCache } from './src/utils/cacheDir.ts';
 
 async function startServer() {
   const app = express();
@@ -75,17 +76,13 @@ async function startServer() {
     }
 
     try {
-      const runtimeCachePath = path.resolve(process.cwd(), '.cache/runtime-config.json');
-      const cacheDir = path.dirname(runtimeCachePath);
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir, { recursive: true });
-      }
-      fs.writeFileSync(runtimeCachePath, JSON.stringify(currentConfig, null, 2), 'utf-8');
+      const runtimeCachePath = getCacheFilePath('runtime-config.json');
+      safeWriteJsonCache(runtimeCachePath, currentConfig);
     } catch (e: any) {
       console.warn('[Config] 写入本地运行时缓存失败:', e.message);
     }
 
-    res.json({ success: true, message: '配置已更新并已保存至本地运行缓存 (.cache/runtime-config.json)' });
+    res.json({ success: true, message: '配置已更新并已保存至本地运行缓存' });
   });
 
   // API 3.1: Reload configuration from disk and environment
@@ -565,9 +562,8 @@ async function startServer() {
               markdown: content,
               savedAt: Date.now(),
             };
-            const cacheDir = path.resolve(process.cwd(), '.cache');
-            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
-            fs.writeFileSync(path.join(cacheDir, 'current_draft.json'), JSON.stringify(draftCache, null, 2));
+            const draftFile = getCacheFilePath('current_draft.json');
+            safeWriteJsonCache(draftFile, draftCache);
 
             // If auto publish is active, trigger publish
             if (watchState.autoPublish) {
@@ -619,26 +615,15 @@ async function startServer() {
   });
 
   // API 9: Auto-save current working draft
-  const draftCachePath = path.resolve(process.cwd(), '.cache/current_draft.json');
+  const draftCachePath = getCacheFilePath('current_draft.json');
   app.get('/api/draft', (_req, res) => {
-    try {
-      if (fs.existsSync(draftCachePath)) {
-        const data = JSON.parse(fs.readFileSync(draftCachePath, 'utf-8'));
-        return res.json({ draft: data });
-      }
-    } catch {
-      // Ignore
-    }
-    res.json({ draft: null });
+    const data = safeReadJsonCache<any>(draftCachePath, null);
+    res.json({ draft: data });
   });
 
   app.post('/api/draft', (req, res) => {
     try {
-      const cacheDir = path.dirname(draftCachePath);
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir, { recursive: true });
-      }
-      fs.writeFileSync(draftCachePath, JSON.stringify(req.body, null, 2), 'utf-8');
+      safeWriteJsonCache(draftCachePath, req.body);
       res.json({ success: true, savedAt: Date.now() });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });

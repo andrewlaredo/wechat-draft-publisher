@@ -83,15 +83,18 @@ export const LiveMobileTunnelModal: React.FC<LiveMobileTunnelModalProps> = ({
 
   // Compute live review URL
   const activeReviewUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '/preview/live';
+    if (typeof window === 'undefined') return '/?preview=live';
 
     // If a LAN IP is selected, use it with port
     if (selectedIp) {
       const port = window.location.port ? `:${window.location.port}` : '';
-      return `http://${selectedIp}${port}/preview/live`;
+      return `http://${selectedIp}${port}/?preview=live`;
     }
 
-    return `${window.location.origin}/preview/live`;
+    // When using current system domain / host proxy, use ?preview=live
+    // This completely avoids host 404 ("This page doesn't exist") on static SPA deployments and Cloud Run!
+    const cleanPath = window.location.pathname.replace(/\/preview\/live$/, '').replace(/\/$/, '');
+    return `${window.location.origin}${cleanPath}/?preview=live`;
   }, [selectedIp]);
 
   // Generate QR code data URL whenever URL changes
@@ -536,7 +539,7 @@ export const LiveMobileTunnelModal: React.FC<LiveMobileTunnelModalProps> = ({
                   <div className="w-full h-full relative">
                     <iframe
                       key={iframeRefreshKey}
-                      src="/preview/live"
+                      src={activeReviewUrl}
                       title="Mobile Live Preview"
                       className="w-full h-full border-0"
                     />
