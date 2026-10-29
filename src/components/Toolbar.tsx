@@ -23,6 +23,7 @@ import {
   Zap,
   Stethoscope,
   Search,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { SAMPLE_ARTICLES } from '../data/samples.ts';
 import { ThemeConfig } from '../markdown/style.ts';
@@ -66,6 +67,8 @@ interface ToolbarProps {
   onOpenTrendToDraft?: () => void;
   onOpenTypographyDoctor?: () => void;
   onOpenWechatSeo?: () => void;
+  convertLinksToFootnotes?: boolean;
+  onToggleConvertLinksToFootnotes?: () => void;
 }
 
 export const THEME_OPTIONS = [
@@ -119,6 +122,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenTrendToDraft,
   onOpenTypographyDoctor,
   onOpenWechatSeo,
+  convertLinksToFootnotes = true,
+  onToggleConvertLinksToFootnotes,
 }) => {
   return (
     <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -565,6 +570,31 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <span className="hidden sm:inline">Mac 风格代码</span>
               <span className="sm:hidden">Mac</span>
             </button>
+
+            {/* Convert External Links to Footnotes Toggle */}
+            {articleType === 'news' && onToggleConvertLinksToFootnotes && (
+              <button
+                id="btn-toggle-convert-links-footnotes"
+                type="button"
+                onClick={onToggleConvertLinksToFootnotes}
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border transition ${
+                  convertLinksToFootnotes
+                    ? 'bg-sky-950/80 border-sky-600/70 text-sky-300 shadow-xs'
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-neutral-300'
+                }`}
+                title={
+                  convertLinksToFootnotes
+                    ? '微信外链转脚注：已开启 (渲染与复制时自动将无法直跳的外链转为文末参考资料卡)'
+                    : '微信外链转脚注：已关闭 (保持原始超链接)'
+                }
+              >
+                <LinkIcon className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden sm:inline">
+                  {convertLinksToFootnotes ? '外链转脚注: 开' : '外链转脚注: 关'}
+                </span>
+                <span className="sm:hidden">脚注</span>
+              </button>
+            )}
           </>
         )}
       </div>

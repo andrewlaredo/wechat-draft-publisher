@@ -51,6 +51,13 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
     });
   }, [selectedCategory, searchQuery]);
 
+  const displayItem = useMemo(() => {
+    if (filteredComponents.some((c) => c.id === activeItem?.id)) {
+      return activeItem;
+    }
+    return filteredComponents[0] || INTERACTIVE_COMPONENTS[0];
+  }, [filteredComponents, activeItem]);
+
   const handleCopyCode = (item: InteractiveComponentItem) => {
     navigator.clipboard.writeText(item.template);
     setCopiedId(item.id);
@@ -75,13 +82,13 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold text-neutral-100">微信爆款排版组件物料库</h2>
+                <h2 className="text-base font-bold text-neutral-100">微信爆款排版微版式物料库</h2>
                 <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-950 border border-amber-800 text-amber-300 font-medium">
                   {INTERACTIVE_COMPONENTS.length} 款专业排版物料
                 </span>
               </div>
               <p className="text-xs text-neutral-400 mt-0.5">
-                一键插入金句框、微信对话气泡、步骤流程条、深度导读名片与高转化文末互动卡
+                一键插入金句框、微信对话气泡、步骤流程条、风格分割线、导读名片与高转化文末互动卡
               </p>
             </div>
           </div>
@@ -137,7 +144,7 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
               </div>
             ) : (
               filteredComponents.map((item) => {
-                const isSelected = activeItem.id === item.id;
+                const isSelected = displayItem.id === item.id;
                 return (
                   <button
                     key={item.id}
@@ -175,10 +182,10 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
             {/* Preview Toolbar */}
             <div className="px-5 py-3 border-b border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-950/30">
               <div className="flex items-center space-x-2">
-                <span className="text-xl">{activeItem.icon}</span>
+                <span className="text-xl">{displayItem.icon}</span>
                 <div>
-                  <div className="text-xs font-bold text-neutral-200">{activeItem.name}</div>
-                  <div className="text-[10px] text-neutral-400">{activeItem.description}</div>
+                  <div className="text-xs font-bold text-neutral-200">{displayItem.name}</div>
+                  <div className="text-[10px] text-neutral-400">{displayItem.description}</div>
                 </div>
               </div>
 
@@ -202,7 +209,7 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
             <div className="flex-1 overflow-y-auto p-5 bg-neutral-950 flex flex-col items-center justify-center">
               {viewSource ? (
                 <div className="w-full h-full max-h-96 p-4 rounded-xl bg-neutral-900 border border-neutral-800 font-mono text-xs text-neutral-300 overflow-y-auto leading-relaxed select-text">
-                  <pre className="whitespace-pre-wrap">{activeItem.template}</pre>
+                  <pre className="whitespace-pre-wrap">{displayItem.template}</pre>
                 </div>
               ) : (
                 <div className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl border border-neutral-200 text-neutral-800 antialiased my-auto select-none">
@@ -212,7 +219,7 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
                     <span>100% 深度内联样式</span>
                   </div>
                   <div
-                    dangerouslySetInnerHTML={{ __html: activeItem.template }}
+                    dangerouslySetInnerHTML={{ __html: displayItem.template }}
                     className="wechat-preview-block"
                   />
                 </div>
@@ -223,10 +230,10 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
             <div className="px-5 py-3.5 border-t border-neutral-800 bg-neutral-950 flex items-center justify-between flex-shrink-0">
               <button
                 type="button"
-                onClick={() => handleCopyCode(activeItem)}
+                onClick={() => handleCopyCode(displayItem)}
                 className="py-1.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 text-xs font-medium border border-neutral-700 flex items-center gap-1.5 transition"
               >
-                {copiedId === activeItem.id ? (
+                {copiedId === displayItem.id ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                     <span className="text-emerald-400">已复制组件代码</span>
@@ -249,7 +256,7 @@ export const InteractiveComponentsModal: React.FC<InteractiveComponentsModalProp
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleInsert(activeItem)}
+                  onClick={() => handleInsert(displayItem)}
                   className="py-1.5 px-4 rounded-lg bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md flex items-center gap-1.5 transition"
                 >
                   <Plus className="w-3.5 h-3.5" />

@@ -11,7 +11,7 @@ export interface InteractiveComponentItem {
   id: string;
   name: string;
   description: string;
-  category: 'quote' | 'step' | 'chat' | 'card' | 'guide' | 'interactive';
+  category: 'quote' | 'step' | 'chat' | 'card' | 'divider' | 'guide' | 'interactive';
   icon: string;
   tag: string;
   template: string;
@@ -24,6 +24,7 @@ export const INTERACTIVE_CATEGORIES = [
   { id: 'step', name: '步骤条与对比卡' },
   { id: 'chat', name: '微信对话气泡' },
   { id: 'card', name: '导读与知识卡片' },
+  { id: 'divider', name: '风格分割线' },
   { id: 'guide', name: '文首文末互动' },
   { id: 'interactive', name: '折叠答疑与画廊' },
 ];
@@ -474,5 +475,230 @@ export const INTERACTIVE_COMPONENTS: InteractiveComponentItem[] = [
 `,
     previewHtml: `<div style="padding: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;"><div style="font-size: 10px; font-weight: bold; text-align: center;">⚡ 观点对撞</div><div style="font-size: 9px; color: #1d4ed8; background: #eff6ff; padding: 2px 4px; border-radius: 3px; margin: 3px 0;">🔵 效率解放思考</div><div style="font-size: 9px; color: #be123c; background: #fff1f2; padding: 2px 4px; border-radius: 3px;">🔴 警惕同质化</div></div>`,
   },
+
+  // 7. 居中超大引号经典金句框 (Center Giant Quote)
+  {
+    id: 'center-giant-quote',
+    name: '居中超大双引号金句卡',
+    description: '采用优雅衬线大字号引号与居中文学排版，极适合名人格言、文章核心主旨或阶段性总结',
+    category: 'quote',
+    icon: '❝',
+    tag: '经典金句',
+    template: `<section style="margin: 32px 0; padding: 24px 20px; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 14px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+  <div style="font-family: Georgia, serif; font-size: 42px; line-height: 1; color: #da282a; opacity: 0.85; margin-bottom: 8px;">“</div>
+  <p style="margin: 0 auto; max-width: 90%; font-size: 16px; line-height: 1.85; color: #1e293b; font-weight: 600; letter-spacing: 0.5px;">
+    在信息爆炸的时代，决定一篇公众号文章价值的，从来不是字数的堆砌，而是信息密度的沉淀与直击人心的观点。
+  </p>
+  <div style="width: 32px; height: 2px; background: #da282a; margin: 16px auto 12px; border-radius: 1px; opacity: 0.6;"></div>
+  <div style="font-size: 12px; color: #64748b; font-style: italic; letter-spacing: 0.5px;">
+    —— 资深内容主编卷首语
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="text-align: center; padding: 12px; background: #fff; border: 1px solid #f1f5f9; border-radius: 8px;"><span style="color: #da282a; font-size: 20px; font-family: serif;">“</span><div style="font-size: 11px; font-weight: 600; color: #1e293b;">决定文章价值的，是信息密度与沉淀...</div><div style="font-size: 9px; color: #64748b; margin-top: 4px;">—— 卷首语</div></div>`,
+  },
+
+  // 8. 渐变圆角数字徽章步骤组 (Numbered Steps Pills)
+  {
+    id: 'numbered-steps-pills',
+    name: '渐变数字圆标三步核心卡',
+    description: '01/02/03 醒目渐变胶囊徽标，结构极其清晰，极大提升手机端读者的章节导航舒适度',
+    category: 'step',
+    icon: '🔢',
+    tag: '清晰结构',
+    template: `<section style="margin: 28px 0; padding: 18px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+  <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 16px; display: flex; align-items: center; gap: 6px;">
+    <span style="display: inline-block; width: 4px; height: 16px; background: #1e80ff; border-radius: 2px;"></span>
+    <span>高效内容发布三大核心法则</span>
+  </div>
+
+  <div style="display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start;">
+    <div style="background: linear-gradient(135deg, #1e80ff, #3b82f6); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 6px; flex-shrink: 0; font-family: monospace;">01</div>
+    <div style="flex: 1;">
+      <div style="font-size: 14px; font-weight: 600; color: #1e293b;">明确读者搜索意图与核心痛点</div>
+      <div style="font-size: 12.5px; color: #64748b; margin-top: 2px; line-height: 1.6;">在第一屏给出清晰答案，降低读者认知负荷与流失率。</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start;">
+    <div style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 6px; flex-shrink: 0; font-family: monospace;">02</div>
+    <div style="flex: 1;">
+      <div style="font-size: 14px; font-weight: 600; color: #1e293b;">统一视觉规范与盘古中英排版</div>
+      <div style="font-size: 12.5px; color: #64748b; margin-top: 2px; line-height: 1.6;">字间隙与行高严格贴合移动端视口，多用卡片化微版式隔离重点。</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 6px; flex-shrink: 0; font-family: monospace;">03</div>
+    <div style="flex: 1;">
+      <div style="font-size: 14px; font-weight: 600; color: #1e293b;">文末自动化外链转脚注与互动闭环</div>
+      <div style="font-size: 12.5px; color: #64748b; margin-top: 2px; line-height: 1.6;">规范引文出处，附带三连引导与精选推荐卡片，沉淀读者资产。</div>
+    </div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;"><div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">核心三大法则</div><div style="font-size: 9px; display: flex; gap: 4px; align-items: center;"><span style="background: #1e80ff; color: #fff; padding: 1px 4px; border-radius: 3px;">01</span><span>意图匹配</span> <span style="background: #10b981; color: #fff; padding: 1px 4px; border-radius: 3px;">02</span><span>排版规范</span> <span style="background: #8b5cf6; color: #fff; padding: 1px 4px; border-radius: 3px;">03</span><span>互动闭环</span></div></div>`,
+  },
+
+  // 9. 顶端引导关注与阅读时长条 (Header Follow Banner)
+  {
+    id: 'header-follow-banner',
+    name: '文首引导关注与星标置顶条',
+    description: '置于文章顶部第一行，提示预计阅读时长、公号定位与星标置顶引导',
+    category: 'guide',
+    icon: '📌',
+    tag: '文首引流',
+    template: `<section style="margin: 0 0 24px; padding: 12px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <span style="font-size: 16px;">💡</span>
+    <span style="font-size: 12.5px; color: #166534; font-weight: 500;">
+      欢迎关注<strong>【公众号名称】</strong>并设为星标，第一时间接收前沿干货
+    </span>
+  </div>
+  <div style="font-size: 11px; color: #15803d; background: #dcfce7; padding: 2px 8px; border-radius: 99px; flex-shrink: 0; font-weight: 600;">
+    ⏱️ 预计 4 分钟
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 10px; color: #166534;">💡 欢迎关注并设为星标</span><span style="font-size: 9px; background: #dcfce7; color: #15803d; padding: 1px 6px; border-radius: 99px;">⏱️ 4 分钟</span></div>`,
+  },
+
+  // 10. 核心速览与关键结论要点卡 (Key Takeaways Card)
+  {
+    id: 'key-takeaways-card',
+    name: '核心速览与结论清单卡',
+    description: '绿色对勾徽章清单，让快速翻阅的读者能在 10 秒内锁定整篇文章的核心价值',
+    category: 'card',
+    icon: '✅',
+    tag: '速览总结',
+    template: `<section style="margin: 26px 0; padding: 18px 20px; background: #f8fafc; border: 1px solid #cbd5e1; border-left: 5px solid #10b981; border-radius: 0 12px 12px 0;">
+  <div style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+    <span>⚡ 本篇核心速览与关键结论</span>
+  </div>
+  <ul style="margin: 0; padding: 0; list-style: none;">
+    <li style="margin-bottom: 8px; font-size: 13.5px; color: #334155; line-height: 1.6; display: flex; align-items: flex-start; gap: 8px;">
+      <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+      <span>所有富文本样式必须 100% 深度内联，微信富文本粘贴引擎才会完整保留。</span>
+    </li>
+    <li style="margin-bottom: 8px; font-size: 13.5px; color: #334155; line-height: 1.6; display: flex; align-items: flex-start; gap: 8px;">
+      <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+      <span>外链自动转文末脚注能够有效化解微信外链无法点击的体验短板。</span>
+    </li>
+    <li style="margin: 0; font-size: 13.5px; color: #334155; line-height: 1.6; display: flex; align-items: flex-start; gap: 8px;">
+      <span style="color: #10b981; font-weight: bold; flex-shrink: 0;">✓</span>
+      <span>中英文与数字间规范盘古之白空格，是专业大厂文章的标志性排版标准。</span>
+    </li>
+  </ul>
+</section>
+
+`,
+    previewHtml: `<div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 8px 12px; border-radius: 0 6px 6px 0;"><strong style="font-size: 10px; color: #0f172a;">⚡ 核心速览与关键结论</strong><div style="font-size: 9px; color: #334155; margin-top: 3px;">✓ 样式 100% 深度内联<br/>✓ 外链自动转文末脚注<br/>✓ 规范盘古之白空格</div></div>`,
+  },
+
+  // 11. 文末作者签名致谢与二维码名片卡 (Author Signature Footer)
+  {
+    id: 'author-signature-footer',
+    name: '文末作者名片与二维码扫码卡',
+    description: '包含作者头像圆形勋章、公众号名字与个人标语，带右侧二维码扫码位，大幅拉升长尾关注',
+    category: 'card',
+    icon: '📇',
+    tag: '作者名片',
+    template: `<section style="margin: 34px 0 16px; padding: 20px; background: #fdfbf7; border: 1px solid #f3ebd8; border-radius: 14px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 200px;">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #07c160); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; flex-shrink: 0; box-shadow: 0 4px 12px rgba(7,193,96,0.25);">
+        专
+      </div>
+      <div>
+        <div style="font-size: 15px; font-weight: 700; color: #78350f;">创作者专栏 · 深度工程思考</div>
+        <div style="font-size: 12px; color: #92400e; margin-top: 3px; line-height: 1.5;">
+          专注探索自媒体工业级流水线排版、自动化全网矩阵推送与前沿技术实战。
+        </div>
+      </div>
+    </div>
+    <div style="text-align: center; border-left: 1px dashed #f3ebd8; padding-left: 16px; flex-shrink: 0;">
+      <div style="width: 68px; height: 68px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; margin: 0 auto;">
+        [二维码位]
+      </div>
+      <div style="font-size: 11px; color: #78350f; font-weight: 600; margin-top: 4px;">长按扫码关注</div>
+    </div>
+  </div>
+</section>
+
+`,
+    previewHtml: `<div style="padding: 8px 12px; background: #fdfbf7; border: 1px solid #f3ebd8; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; gap: 8px; align-items: center;"><div style="width: 28px; height: 28px; border-radius: 50%; background: #10b981; color: #fff; text-align: center; line-height: 28px; font-size: 11px; font-weight: bold;">专</div><div><div style="font-size: 10px; font-weight: bold; color: #78350f;">深度工程思考</div><div style="font-size: 9px; color: #92400e;">专注自媒体工业级排版</div></div></div><span style="font-size: 9px; color: #78350f; border: 1px dashed #d97706; padding: 2px 4px; border-radius: 3px;">长按扫码</span></div>`,
+  },
+
+  // 12. 风格分割线系列 - 剪刀虚线 (Divider Scissor)
+  {
+    id: 'divider-scissor',
+    name: '剪刀裁切虚线分割线',
+    description: '经典的纸质裁切线，带左侧或居中小剪刀图标，适合章节过渡与附录区分',
+    category: 'divider',
+    icon: '✂️',
+    tag: '经典分割',
+    template: `<div style="margin: 32px 0; text-align: center; position: relative;">
+  <div style="border-top: 1.5px dashed #cbd5e1; height: 1px; width: 100%;"></div>
+  <span style="display: inline-block; background: #ffffff; padding: 0 10px; position: relative; top: -11px; color: #94a3b8; font-size: 13px;">✂️ - - - - - - - - - -</span>
+</div>
+
+`,
+    previewHtml: `<div style="text-align: center; padding: 8px 0; border-top: 1px dashed #cbd5e1; position: relative; margin: 10px 0;"><span style="position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 6px; font-size: 10px; color: #94a3b8;">✂️ - - - - -</span></div>`,
+  },
+
+  // 13. 风格分割线系列 - 渐变微光渐隐线 (Divider Gradient)
+  {
+    id: 'divider-gradient',
+    name: '极简微光双向渐隐分割线',
+    description: '现代大厂极简风格，由中心向两端渐隐的细线，清爽无任何视觉杂质',
+    category: 'divider',
+    icon: '➖',
+    tag: '现代极简',
+    template: `<div style="margin: 36px auto; width: 80%; height: 1.5px; background: linear-gradient(90deg, rgba(203,213,225,0) 0%, rgba(30,128,255,0.7) 50%, rgba(203,213,225,0) 100%); border-radius: 1px;"></div>
+
+`,
+    previewHtml: `<div style="margin: 12px auto; width: 70%; height: 2px; background: linear-gradient(90deg, transparent, #1e80ff, transparent);"></div>`,
+  },
+
+  // 14. 风格分割线系列 - 几何菱形三点线 (Divider Diamonds)
+  {
+    id: 'divider-diamonds',
+    name: '雅致几何菱形三点线',
+    description: '居中排列的古典几何菱形符号，给人静谧有品位的纸书阅读体验',
+    category: 'divider',
+    icon: '◆',
+    tag: '雅致人文',
+    template: `<div style="margin: 32px 0; text-align: center; font-size: 12px; letter-spacing: 8px; color: #94a3b8; opacity: 0.85;">
+  ◆ · ◆ · ◆
+</div>
+
+`,
+    previewHtml: `<div style="text-align: center; font-size: 10px; letter-spacing: 6px; color: #94a3b8; padding: 6px 0;">◆ · ◆ · ◆</div>`,
+  },
+
+  // 15. 清新技巧提示框 (Tip Success Card)
+  {
+    id: 'tip-success-card',
+    name: '清新技巧与成功提示框',
+    description: '青绿底色柔光边框，适合小技巧、实战心得或操作成功的正向反馈',
+    category: 'quote',
+    icon: '💡',
+    tag: '技巧心得',
+    template: `<section style="margin: 22px 0; padding: 14px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4.5px solid #10b981; border-radius: 8px;">
+  <div style="font-size: 14px; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 5px; margin-bottom: 4px;">
+    <span>💡 实战效率提升小妙招</span>
+  </div>
+  <p style="margin: 0; font-size: 13.5px; line-height: 1.7; color: #14532d;">
+    建议在本地写作时开启「中英排版规范化」，配合「外链转脚注」，只需一次点击即可让全文达到专业学术大刊级别的严谨度！
+  </p>
+</section>
+
+`,
+    previewHtml: `<div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 8px 12px; border-radius: 4px;"><strong style="color: #166534; font-size: 10px;">💡 实战小妙招</strong><p style="margin: 2px 0 0; color: #14532d; font-size: 9px;">开启中英排版规范化与外链转脚注...</p></div>`,
+  },
 ];
+
 

@@ -250,10 +250,12 @@ export function diagnoseTypography(markdown: string): TypographyReport {
   };
 }
 
+import { formatChineseEnglishSpacing } from './textBeautifier.ts';
+
 /**
  * 一键智能规范化排版 (Auto-Fix Engine)
- * - 自动中英文盘古空格
- * - 自动全角标点纠偏
+ * - 自动中英文盘古空格 (Pangu.js 深度集成)
+ * - 自动全角标点纠偏与标点去重
  * - 自动折叠冗余连续空行
  */
 export function autoFixTypography(markdown: string): {
@@ -262,52 +264,12 @@ export function autoFixTypography(markdown: string): {
 } {
   if (!markdown) return { fixedMarkdown: '', changesCount: 0 };
 
-  let current = markdown;
-  let changesCount = 0;
-
-  // 1. 折叠 3 个以上无意义空行 -> 规范为最多 2 个空行
-  const collapsedLines = current.replace(/\n{4,}/g, '\n\n\n');
-  if (collapsedLines !== current) {
-    changesCount++;
-    current = collapsedLines;
-  }
-
-  // 2. 保护代码块和数学公式
-  const codeBlocks: string[] = [];
-  let masked = current.replace(/(```[\s\S]*?```|`[^`\n]+`|\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (match) => {
-    codeBlocks.push(match);
-    return `___CODE_BLOCK_${codeBlocks.length - 1}___`;
-  });
-
-  // 3. 规范化标点与符号
-  // 中文环境下的英文逗号与分号替换为全角逗号与分号
-  const origBeforePunct = masked;
-  masked = masked.replace(/([\u4e00-\u9fa5]),\s*([\u4e00-\u9fa5])/g, '$1，$2');
-  masked = masked.replace(/([\u4e00-\u9fa5]);\s*([\u4e00-\u9fa5])/g, '$1；$2');
-  // 规范过多重复感叹号问号
-  masked = masked.replace(/！{2,}/g, '！').replace(/？{2,}/g, '？');
-  if (masked !== origBeforePunct) {
-    changesCount++;
-  }
-
-  // 4. 盘古规范插入空格 (CJK 与英数)
-  const CJK = '[\\u4e00-\\u9fa5\\u3400-\\u4dbf]';
-  const ANS = '[a-zA-Z0-9]';
-
-  const origBeforeSpacing = masked;
-  masked = masked.replace(new RegExp(`(${CJK})(${ANS})`, 'g'), '$1 $2');
-  masked = masked.replace(new RegExp(`(${ANS})(${CJK})`, 'g'), '$1 $2');
-  if (masked !== origBeforeSpacing) {
-    changesCount++;
-  }
-
-  // 5. 还原代码块
-  const fixed = masked.replace(/___CODE_BLOCK_(\d+)___/g, (_, idx) => {
-    return codeBlocks[parseInt(idx, 10)] || '';
-  });
+  const result = formatChineseEnglishSpacing(markdown);
+  const changesCount = result.spacesAdded + result.punctuationFixed + result.emptyLinesFolded;
 
   return {
-    fixedMarkdown: fixed,
-    changesCount,
+    fixedMarkdown: result.formatted,
+    changesCount: result.changed ? Math.max(1, changesCount) : 0,
   };
 }
+

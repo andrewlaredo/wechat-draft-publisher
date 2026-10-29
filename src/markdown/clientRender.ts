@@ -2,6 +2,7 @@ import yaml from 'yaml';
 import { createMarkdownRenderer } from './renderer.ts';
 import { inlineWechatStyles, ThemeConfig } from './style.ts';
 import { extractNewspicText } from './parser.ts';
+import { convertLinksToFootnotes } from '../utils/footnoteConverter.ts';
 
 export interface RenderResult {
   metadata: {
@@ -40,6 +41,7 @@ export function renderMarkdownLocally(
     codeTheme?: string;
     defaultAuthor?: string;
     customThemeConfig?: ThemeConfig;
+    convertLinksToFootnotes?: boolean;
   } = {}
 ): RenderResult {
   const {
@@ -49,6 +51,7 @@ export function renderMarkdownLocally(
     codeTheme = 'github',
     defaultAuthor = '公众号作者',
     customThemeConfig,
+    convertLinksToFootnotes: shouldConvertLinks = false,
   } = options;
 
   let frontMatterData: Record<string, any> = {};
@@ -136,7 +139,15 @@ export function renderMarkdownLocally(
     codeTheme: activeCodeTheme,
   });
 
-  const rawHtml = renderer.render(content);
+  let renderContent = content;
+  if (shouldConvertLinks) {
+    const footnoteRes = convertLinksToFootnotes(content, { footnoteStyle: 'superscript' });
+    if (footnoteRes.linkCount > 0) {
+      renderContent = footnoteRes.convertedMarkdown;
+    }
+  }
+
+  const rawHtml = renderer.render(renderContent);
   const inlinedHtml = inlineWechatStyles(rawHtml, activeTheme, themeEnabled, customThemeConfig);
   const newspicCaption = extractNewspicText(content);
 

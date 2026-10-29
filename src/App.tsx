@@ -157,6 +157,15 @@ export default function App() {
     return true;
   });
 
+  // Convert external links to footnotes toggle
+  const [convertLinksToFootnotes, setConvertLinksToFootnotes] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('wechat_convert_links_footnotes_v1');
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return true;
+  });
+
   // Message Type: Classic Rich Text News vs Image Message (贴图 / newspic)
   const [articleType, setArticleType] = useState<'news' | 'newspic'>(() => {
     try {
@@ -469,6 +478,7 @@ export default function App() {
         themeEnabled,
         macStyle,
         customThemeConfig,
+        convertLinksToFootnotes,
       });
 
       setInlinedHtml(localResult.inlinedHtml);
@@ -511,7 +521,7 @@ export default function App() {
     } catch (localErr) {
       console.warn('Local render fallback error:', localErr);
     }
-  }, [markdown, activeTheme, themeEnabled, macStyle, customThemes]);
+  }, [markdown, activeTheme, themeEnabled, macStyle, customThemes, convertLinksToFootnotes]);
 
   // Pre-publish Content Compliance & Safety Audit Report
   const safetyReport = useMemo(() => {
@@ -1344,6 +1354,16 @@ export default function App() {
         }}
         onOpenTypographyDoctor={() => setIsTypographyDoctorOpen(true)}
         onOpenWechatSeo={() => setIsWechatSeoOpen(true)}
+        convertLinksToFootnotes={convertLinksToFootnotes}
+        onToggleConvertLinksToFootnotes={() => {
+          setConvertLinksToFootnotes((prev) => {
+            const next = !prev;
+            try {
+              localStorage.setItem('wechat_convert_links_footnotes_v1', String(next));
+            } catch {}
+            return next;
+          });
+        }}
       />
 
       {/* Main Workspace: Split Pane or Zen Focus Mode */}

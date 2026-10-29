@@ -56,6 +56,7 @@ import {
   formatChineseEnglishSpacing,
   OutlineItem,
 } from '../utils/textBeautifier.ts';
+import { convertLinksToFootnotes } from '../utils/footnoteConverter.ts';
 import {
   recordEditorCursor,
   wrapWechatComponent,
@@ -206,13 +207,32 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // Chinese-English Pangu Spacing Beautifier
   const handleFormatChineseEnglishSpacing = () => {
-    const { formatted, changed } = formatChineseEnglishSpacing(markdown);
-    if (!changed) {
+    const result = formatChineseEnglishSpacing(markdown);
+    if (!result.changed) {
       showNotice('当前中英文排版与间距已非常规范，无需调整！');
       return;
     }
-    onMarkdownChange(formatted);
-    showNotice('✨ 已完成中英文盘古间距与标点排版规范化！');
+    onMarkdownChange(result.formatted);
+    const details = [
+      result.spacesAdded > 0 ? `${result.spacesAdded} 处盘古空格` : null,
+      result.punctuationFixed > 0 ? `${result.punctuationFixed} 处标点规范` : null,
+      result.emptyLinesFolded > 0 ? `${result.emptyLinesFolded} 处冗余空行折叠` : null,
+    ].filter(Boolean).join('、');
+    showNotice(`✨ 盘古排版规范化完成！优化了 ${details || '排版格式'}`);
+  };
+
+  // Convert external links to footnotes
+  const handleConvertExternalLinksToFootnotes = () => {
+    const { convertedMarkdown, linkCount } = convertLinksToFootnotes(markdown, {
+      footnoteStyle: 'superscript',
+      includeWeChatLinks: false,
+    });
+    if (linkCount === 0) {
+      showNotice('正文中未检测到外部超链接或均为微信内链。');
+      return;
+    }
+    onMarkdownChange(convertedMarkdown);
+    showNotice(`📚 已成功将 ${linkCount} 处外部超链接转换为文末微信参考资料卡片！`);
   };
 
   // Heading shift
@@ -831,10 +851,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               type="button"
               onClick={handleFormatChineseEnglishSpacing}
               className="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-amber-300 border border-amber-600/40 text-[11px] font-medium transition flex items-center space-x-1"
-              title="排版效能：一键自动为中英文与数字之间添加标准盘古空格，修正重复标点，遵循中文排版指南规范"
+              title="排版效能：一键自动为中英文与数字之间添加标准盘古空格，修正全半角重复标点，遵循中文排版指南规范"
             >
               <Wand2 className="w-3 h-3 text-amber-400" />
-              <span>中英排版规范化</span>
+              <span>中英规范化</span>
+            </button>
+
+            {/* Link to Footnote Converter Button */}
+            <button
+              type="button"
+              onClick={handleConvertExternalLinksToFootnotes}
+              className="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-sky-300 border border-sky-600/40 text-[11px] font-medium transition flex items-center space-x-1"
+              title="微信外链转脚注：微信无法直跳外部网址，一键将正文超链接转换为标准角标并在文末生成精美参考资料卡"
+            >
+              <LinkIcon className="w-3 h-3 text-sky-400" />
+              <span>外链转脚注</span>
             </button>
 
             <button
