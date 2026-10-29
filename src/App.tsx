@@ -64,6 +64,7 @@ import {
   Zap,
   Stethoscope,
   Search,
+  Workflow,
 } from 'lucide-react';
 import {
   WeChatAccountConfig,
@@ -1059,6 +1060,18 @@ export default function App() {
       icon: <Sparkles className="w-4 h-4 text-amber-400" />,
       keywords: ['物料', '组件', '气泡', '金句', '对话', 'components', 'material'],
       action: () => setIsInteractiveComponentsOpen(true),
+    },
+    {
+      id: 'cmd-mermaid-chart',
+      title: '插入纯矢量图表 (Mermaid 流程图/时序图)',
+      subtitle: '微信公众号免图床内联 SVG 直出，支持自适应缩放与高清呈现',
+      category: 'format',
+      icon: <Workflow className="w-4 h-4 text-blue-400" />,
+      keywords: ['mermaid', '图表', '流程图', '时序图', '架构图', '饼图', 'svg', 'chart'],
+      action: () => {
+        setMarkdown((prev) => `${prev}\n\n\`\`\`mermaid\ngraph TD\nA([开始：选题策划]) --> B[大纲提炼与正文撰写]\nB --> C{初稿自检审核}\nC -->|审核通过| D[微信高保真排版]\nC -->|待优化调整| B\nD --> E[(一键发布与多端分发)]\n\`\`\`\n`);
+        showToast('📊 已在正文插入纯矢量 Mermaid 业务流程图！');
+      },
     },
     {
       id: 'cmd-svg',

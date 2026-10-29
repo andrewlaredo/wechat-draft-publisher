@@ -35,6 +35,8 @@ import {
   Eye,
   Palette,
   Layout,
+  Workflow,
+  Sigma,
 } from 'lucide-react';
 import { ArticleMeta, PublishHistoryItem } from '../types/app.ts';
 import { wechatHtmlToMarkdown, isHtmlContent } from '../markdown/html2md.ts';
@@ -93,6 +95,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [activeTab, setActiveTab] = useState<'editor' | 'metadata' | 'images' | 'history'>('editor');
   const [cleanNotice, setCleanNotice] = useState<string | null>(null);
   const [isComponentsModalOpen, setIsComponentsModalOpen] = useState(false);
+  const [isMermaidMenuOpen, setIsMermaidMenuOpen] = useState(false);
 
   // Outline / Table of Contents state
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
@@ -633,9 +636,116 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <button
               onClick={() => insertText('```typescript\n', '\n```')}
               className="px-1.5 py-0.5 rounded hover:bg-neutral-700 hover:text-neutral-100 transition font-mono text-[11px]"
-              title="代码块"
+              title="插入多语言代码高亮块"
             >
               代码块
+            </button>
+
+            {/* Mermaid 矢量图表快捷插入菜单 */}
+            <div className="relative inline-block">
+              <button
+                type="button"
+                onClick={() => setIsMermaidMenuOpen((prev) => !prev)}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition flex items-center space-x-1 ${
+                  isMermaidMenuOpen
+                    ? 'bg-blue-600/40 text-blue-300 border border-blue-500/60 shadow-sm'
+                    : 'bg-neutral-800 hover:bg-neutral-700 text-blue-300 border border-blue-800/60'
+                }`}
+                title="插入微信高保真纯矢量图表（流程图、时序图、架构图、饼图，免图床）"
+              >
+                <Workflow className="w-3 h-3 text-blue-400" />
+                <span>图表</span>
+              </button>
+
+              {isMermaidMenuOpen && (
+                <div
+                  className="absolute left-0 top-full mt-1.5 w-64 bg-neutral-900 border border-neutral-700 rounded-lg shadow-2xl p-1.5 z-40 animate-fadeIn text-xs"
+                  onMouseLeave={() => setIsMermaidMenuOpen(false)}
+                >
+                  <div className="text-[10px] font-semibold text-neutral-400 px-2 py-1 uppercase tracking-wider border-b border-neutral-800 mb-1 flex items-center justify-between">
+                    <span>矢量图表模板 (SVG 直出)</span>
+                    <span className="text-emerald-400 font-normal">微信免图床</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText('\n```mermaid\ngraph TD\nA([开始：选题策划]) --> B[大纲提炼与正文撰写]\nB --> C{初稿自检审核}\nC -->|审核通过| D[微信高保真排版]\nC -->|待优化调整| B\nD --> E[(一键发布或复制)]\n```\n');
+                      setIsMermaidMenuOpen(false);
+                      showNotice('📊 已插入业务流程图 (TD) 模板，支持直接在正文中修改文字！');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-blue-300 transition flex items-center justify-between group"
+                  >
+                    <div>
+                      <div className="font-medium text-[11px] text-neutral-200 group-hover:text-blue-300">🔀 纵向流程图 (TD)</div>
+                      <div className="text-[10px] text-neutral-400">自上而下、条件分支判断</div>
+                    </div>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">业务</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText('\n```mermaid\ngraph LR\nA[手机端微信] --> B[API网关]\nB --> C[排版渲染微服务]\nC --> D[SVG矢量图转换引擎]\nD --> E[(CDN分发网络)]\n```\n');
+                      setIsMermaidMenuOpen(false);
+                      showNotice('📊 已插入横向架构图 (LR) 模板！');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-blue-300 transition flex items-center justify-between group mt-0.5"
+                  >
+                    <div>
+                      <div className="font-medium text-[11px] text-neutral-200 group-hover:text-blue-300">➡️ 横向架构图 (LR)</div>
+                      <div className="text-[10px] text-neutral-400">左右流转、调用链路</div>
+                    </div>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">系统</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText('\n```mermaid\nsequenceDiagram\nparticipant User as 读者用户\nparticipant WeChat as 微信公众号\nparticipant Server as 后台服务\nUser ->> WeChat: 扫描临时审稿二维码\nWeChat ->> Server: 请求最新渲染草稿\nServer -->> WeChat: 返回内联富文本与矢量图\nWeChat -->> User: 呈现移动端真机预览\n```\n');
+                      setIsMermaidMenuOpen(false);
+                      showNotice('📊 已插入交互时序图 (Sequence) 模板！');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-blue-300 transition flex items-center justify-between group mt-0.5"
+                  >
+                    <div>
+                      <div className="font-medium text-[11px] text-neutral-200 group-hover:text-blue-300">⏱️ 交互时序图 (Sequence)</div>
+                      <div className="text-[10px] text-neutral-400">参与者交互、消息往返</div>
+                    </div>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">时序</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText('\n```mermaid\npie title 公众号读者阅读终端占比\n"微信移动端 iOS" : 54\n"微信移动端 Android" : 36\n"微信电脑客户端" : 7\n"浏览器外部链接" : 3\n```\n');
+                      setIsMermaidMenuOpen(false);
+                      showNotice('📊 已插入环形占比饼图 (Pie) 模板！');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-blue-300 transition flex items-center justify-between group mt-0.5"
+                  >
+                    <div>
+                      <div className="font-medium text-[11px] text-neutral-200 group-hover:text-blue-300">🍩 环形占比饼图 (Pie)</div>
+                      <div className="text-[10px] text-neutral-400">数据占比统计、份额分布</div>
+                    </div>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">数据</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* LaTeX 数学公式快捷插入 */}
+            <button
+              type="button"
+              onClick={() => {
+                insertText('\n$$\n\\int_{-\\infty}^{+\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n');
+                showNotice('📐 已插入 LaTeX 数学公式块！');
+              }}
+              className="px-1.5 py-0.5 rounded hover:bg-neutral-700 text-neutral-300 hover:text-emerald-300 transition text-[11px] flex items-center space-x-1"
+              title="插入 LaTeX 数学公式块 (KaTeX 高精渲染)"
+            >
+              <Sigma className="w-3 h-3 text-emerald-400" />
+              <span>公式</span>
             </button>
             <button
               onClick={() => insertText('| 标题1 | 标题2 |\n| :--- | :--- |\n| 内容1 | 内容2 |\n')}

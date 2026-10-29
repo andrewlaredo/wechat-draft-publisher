@@ -14,15 +14,6 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
     linkify: true,
     typographer: true,
     highlight: (str: string, lang: string): string => {
-      // 1. Mermaid vector flowchart and sequence diagrams
-      if (lang && lang.toLowerCase() === 'mermaid') {
-        try {
-          return renderMermaidToSvg(str);
-        } catch {
-          // Fallback to code block if parsing error
-        }
-      }
-
       let highlightedCode = '';
       let detectedLang = lang || 'plaintext';
 
@@ -57,6 +48,22 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
       </div>`;
     },
   });
+
+  // Custom fence renderer: intercept 'mermaid' code blocks to render vector SVG directly without <pre><code> wrapping
+  const defaultFence = md.renderer.rules.fence || ((tokens: any, idx: any, opt: any, _env: any, self: any) => self.renderToken(tokens, idx, opt));
+  md.renderer.rules.fence = (tokens: any, idx: any, opt: any, env: any, self: any) => {
+    const token = tokens[idx];
+    const info = (token.info || '').trim().toLowerCase();
+    if (info === 'mermaid') {
+      try {
+        const svg = renderMermaidToSvg(token.content);
+        if (svg) return svg;
+      } catch (err) {
+        console.warn('Mermaid render error:', err);
+      }
+    }
+    return defaultFence(tokens, idx, opt, env, self);
+  };
 
   // Custom link renderer: WeChat articles do not support external <a> hyperlinks for unverified/most accounts,
   // so we can render them clearly with descriptive footnote or text styling

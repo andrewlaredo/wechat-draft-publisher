@@ -1,0 +1,6 @@
+{
+  "summary":  "排查并定位了 Mermaid 功能异常的根本技术原因（markdown-it 默认将其包装在 pre/code 标签中且工具栏缺乏插入入口），并制定了涵盖图表修复、可视化快捷模板、多平台导出及智能素材库的后续完整开发规划。",
+  "updatedAt":  "2026-10-28T04:41:46.547837359Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
