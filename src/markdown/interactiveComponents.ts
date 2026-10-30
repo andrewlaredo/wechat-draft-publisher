@@ -699,6 +699,45 @@ export const INTERACTIVE_COMPONENTS: InteractiveComponentItem[] = [
 `,
     previewHtml: `<div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 8px 12px; border-radius: 4px;"><strong style="color: #166534; font-size: 10px;">💡 实战小妙招</strong><p style="margin: 2px 0 0; color: #14532d; font-size: 9px;">开启中英排版规范化与外链转脚注...</p></div>`,
   },
+
+  // 16. 双图并排卡 (Side-by-side Dual Images Grid)
+  {
+    id: 'image-grid-dual',
+    name: '并排双图卡 (50%:50% 永不折行)',
+    description: '采用微信官方 UEditor 完美兼容的零边框表格，移动端真机 100% 保持在同一水平线',
+    category: 'card',
+    icon: '🖼️',
+    tag: '多图并排',
+    template: `<section style="margin: 20px 0; max-width: 100%;">
+::: col-2
+![左侧对比图示](https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop)
+![右侧成果图示](https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&auto=format&fit=crop)
+:::
+</section>
+
+`,
+    previewHtml: `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"><div style="background: #334155; border-radius: 4px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8;">图 1 (50%)</div><div style="background: #334155; border-radius: 4px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8;">图 2 (50%)</div></div>`,
+  },
+
+  // 17. 三图并排画廊 (Side-by-side Triple Images Grid)
+  {
+    id: 'image-grid-triple',
+    name: '并排三图卡 (33%:33%:33% 紧凑画廊)',
+    description: '三图并列等高排版，适合展示三连对比、产品多角度细节或步骤缩略图',
+    category: 'card',
+    icon: '📸',
+    tag: '三图画廊',
+    template: `<section style="margin: 20px 0; max-width: 100%;">
+::: col-3
+![步骤一·方案构想](https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&auto=format&fit=crop)
+![步骤二·编码实现](https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop)
+![步骤三·上线发布](https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop)
+:::
+</section>
+
+`,
+    previewHtml: `<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px;"><div style="background: #334155; border-radius: 4px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8;">图 1</div><div style="background: #334155; border-radius: 4px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8;">图 2</div><div style="background: #334155; border-radius: 4px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8;">图 3</div></div>`,
+  },
 ];
 
 

@@ -26,21 +26,39 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  Star,
+  Copy,
+  Download,
+  Upload,
+  Search,
+  HardDrive,
 } from 'lucide-react';
 import { wechatHtmlToMarkdown } from '../markdown/html2md.ts';
 import { safeFetchJson } from '../utils/safeFetch.ts';
 import { pickNativeMarkdown, isWails } from '../utils/wails.ts';
+import {
+  StoredArticle,
+  getAllArticles,
+  saveArticle,
+  deleteArticle,
+  duplicateArticle,
+  toggleArticleFavorite,
+  searchArticles,
+  exportAllArticlesJson,
+  importArticlesFromJson,
+} from '../utils/indexedDBStorage.ts';
 
 interface DraftManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoadDraftIntoEditor: (article: { title: string; author: string; content: string; digest: string }) => void;
+  onLoadDraftIntoEditor: (article: { title: string; author: string; content: string; digest: string; cover?: string; theme?: string }) => void;
   currentEditorArticle: {
     title: string;
     author: string;
     markdown: string;
     digest: string;
     cover?: string;
+    theme?: string;
   };
   onApplyThumbMediaId?: (thumbMediaId: string, coverUrl?: string) => void;
   onInsertImageToEditor?: (text: string) => void;
@@ -54,7 +72,136 @@ export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
   onApplyThumbMediaId,
   onInsertImageToEditor,
 }) => {
-  const [activeTab, setActiveTab] = useState<'drafts' | 'multi' | 'materials' | 'cache'>('drafts');
+  const [activeTab, setActiveTab] = useState<'local' | 'drafts' | 'multi' | 'materials' | 'cache'>('local');
+
+  // Local IndexedDB articles state
+  const [localArticles, setLocalArticles] = useState<StoredArticle[]>([]);
+  const [loadingLocal, setLoadingLocal] = useState(false);
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [localNotice, setLocalNotice] = useState<string | null>(null);
+
+  const refreshLocalArticles = useCallback(async () => {
+    setLoadingLocal(true);
+    try {
+      const list = await getAllArticles();
+      setLocalArticles(list);
+    } catch (e) {
+      console.warn('Load local articles error:', e);
+    } finally {
+      setLoadingLocal(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      refreshLocalArticles();
+    }
+  }, [isOpen, refreshLocalArticles]);
+
+  const handleSaveCurrentAsNewDraft = async () => {
+    const now = Date.now();
+    const newArticle: StoredArticle = {
+      id: `article_${now}_${Math.random().toString(36).substring(2, 6)}`,
+      title: currentEditorArticle.title || '未命名草稿',
+      author: currentEditorArticle.author || '作者',
+      digest: currentEditorArticle.digest || '',
+      cover: currentEditorArticle.cover || '',
+      markdown: currentEditorArticle.markdown || '',
+      theme: currentEditorArticle.theme || 'pie',
+      wordCount: (currentEditorArticle.markdown || '').length,
+      createdAt: now,
+      updatedAt: now,
+      isFavorite: false,
+    };
+    await saveArticle(newArticle);
+    await refreshLocalArticles();
+    setLocalNotice('✅ 当前文章已成功保存至本地大容量草稿库！');
+    setTimeout(() => setLocalNotice(null), 3000);
+  };
+
+  const handleCreateBlankDraft = async () => {
+    const now = Date.now();
+    const blankArticle: StoredArticle = {
+      id: `article_${now}_${Math.random().toString(36).substring(2, 6)}`,
+      title: '新建空白草稿',
+      author: currentEditorArticle.author || '作者',
+      digest: '',
+      cover: '',
+      markdown: '# 新建文章\n\n在此开始撰写您的精彩内容...',
+      theme: 'pie',
+      wordCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      isFavorite: false,
+    };
+    await saveArticle(blankArticle);
+    await refreshLocalArticles();
+    onLoadDraftIntoEditor({
+      title: blankArticle.title,
+      author: blankArticle.author,
+      content: blankArticle.markdown,
+      digest: blankArticle.digest,
+      cover: blankArticle.cover,
+      theme: blankArticle.theme,
+    });
+    setLocalNotice('📝 已新建空白文章并直接载入编辑器！');
+    setTimeout(() => setLocalNotice(null), 2500);
+  };
+
+  const handleDuplicateLocal = async (id: string) => {
+    const copy = await duplicateArticle(id);
+    if (copy) {
+      await refreshLocalArticles();
+      setLocalNotice(`📑 已生成副本《${copy.title}》！`);
+      setTimeout(() => setLocalNotice(null), 2500);
+    }
+  };
+
+  const handleToggleFavLocal = async (id: string) => {
+    await toggleArticleFavorite(id);
+    await refreshLocalArticles();
+  };
+
+  const handleDeleteLocal = async (id: string, title: string) => {
+    if (confirm(`确定要从本地数据库删除《${title}》吗？`)) {
+      await deleteArticle(id);
+      await refreshLocalArticles();
+      setLocalNotice('🗑️ 已删除草稿');
+      setTimeout(() => setLocalNotice(null), 2500);
+    }
+  };
+
+  const handleExportLocalBackup = async () => {
+    const jsonStr = await exportAllArticlesJson();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wechat-articles-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setLocalNotice('📦 已成功导出本地文章库完整备份！');
+    setTimeout(() => setLocalNotice(null), 2500);
+  };
+
+  const handleImportLocalBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target?.result as string;
+      const res = await importArticlesFromJson(text);
+      if (res.count > 0) {
+        await refreshLocalArticles();
+        setLocalNotice(`📥 成功恢复导入 ${res.count} 篇草稿文章！`);
+        setTimeout(() => setLocalNotice(null), 3000);
+      } else {
+        alert(res.error || '恢复失败：未识别到有效文章格式');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Drafts state
   const [drafts, setDrafts] = useState<any[]>([]);
@@ -670,6 +817,18 @@ export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
         {/* Navigation Tabs */}
         <div className="px-6 border-b border-neutral-800 bg-neutral-900/60 flex items-center space-x-6 text-xs font-medium">
           <button
+            onClick={() => setActiveTab('local')}
+            className={`py-3 flex items-center space-x-2 border-b-2 transition ${
+              activeTab === 'local'
+                ? 'border-emerald-500 text-emerald-400 font-semibold'
+                : 'border-transparent text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <HardDrive className="w-4 h-4 text-emerald-400" />
+            <span>本地大容量草稿库 ({localArticles.length})</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('drafts')}
             className={`py-3 flex items-center space-x-2 border-b-2 transition ${
               activeTab === 'drafts'
@@ -720,6 +879,217 @@ export const DraftManagementModal: React.FC<DraftManagementModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+          {/* ==================================================== */}
+          {/* TAB 0: LOCAL INDEXEDDB ARTICLES */}
+          {/* ==================================================== */}
+          {activeTab === 'local' && (
+            <div className="space-y-4">
+              {/* Top Controls Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-neutral-850 rounded-xl border border-neutral-800">
+                <div className="flex items-center space-x-2 flex-1 min-w-[200px]">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-neutral-500" />
+                    <input
+                      type="text"
+                      value={localSearchQuery}
+                      onChange={(e) => setLocalSearchQuery(e.target.value)}
+                      placeholder="搜索本地草稿标题、摘要或正文关键字..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-neutral-900 border border-neutral-700 rounded-lg text-xs text-neutral-200 focus:outline-hidden focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCreateBlankDraft}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-xs transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>新建空白草稿</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveCurrentAsNewDraft}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs transition"
+                    title="将当前编辑器正在撰写的内容另存为一份新草稿"
+                  >
+                    <Download className="w-3.5 h-3.5 text-blue-400" />
+                    <span>存入当前文章</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExportLocalBackup}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs transition"
+                    title="将本地 IndexedDB 所有草稿打包导出为 JSON 备份"
+                  >
+                    <Download className="w-3.5 h-3.5 text-amber-400" />
+                    <span>全量备份</span>
+                  </button>
+
+                  <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 text-xs cursor-pointer transition">
+                    <Upload className="w-3.5 h-3.5 text-amber-400" />
+                    <span>恢复备份</span>
+                    <input type="file" accept=".json" onChange={handleImportLocalBackup} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              {localNotice && (
+                <div className="p-3 bg-emerald-950/60 border border-emerald-800 text-emerald-300 rounded-xl text-xs flex items-center justify-between animate-fadeIn">
+                  <span>{localNotice}</span>
+                  <button onClick={() => setLocalNotice(null)} className="text-emerald-400 hover:text-emerald-200">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Local Articles List */}
+              {(() => {
+                const filtered = localArticles.filter((art) => {
+                  if (!localSearchQuery.trim()) return true;
+                  const q = localSearchQuery.toLowerCase();
+                  return (
+                    art.title.toLowerCase().includes(q) ||
+                    (art.digest && art.digest.toLowerCase().includes(q)) ||
+                    (art.markdown && art.markdown.toLowerCase().includes(q))
+                  );
+                });
+
+                if (loadingLocal) {
+                  return (
+                    <div className="py-16 flex flex-col items-center justify-center space-y-2 text-neutral-400">
+                      <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                      <span>正在读取本地 IndexedDB 文章库...</span>
+                    </div>
+                  );
+                }
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-16 text-center text-neutral-400 bg-neutral-850 rounded-xl border border-dashed border-neutral-800 space-y-3">
+                      <HardDrive className="w-10 h-10 text-neutral-600 mx-auto" />
+                      <p className="text-xs">
+                        {localSearchQuery ? '未找到符合条件的本地文章' : '本地草稿库暂无文章。您可以点击上方按钮将当前文章存入或新建空白文章。'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleSaveCurrentAsNewDraft}
+                        className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium inline-flex items-center space-x-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>将当前编辑器内容存入本地草稿库</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3 max-h-[56vh] overflow-y-auto pr-1">
+                    {filtered.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-xl bg-neutral-850 border border-neutral-800 hover:border-neutral-700 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+                      >
+                        <div className="flex items-start space-x-3.5 min-w-0 flex-1">
+                          {item.cover ? (
+                            <img
+                              src={item.cover}
+                              alt={item.title}
+                              className="w-16 h-16 rounded-lg object-cover bg-neutral-900 border border-neutral-800 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-500 shrink-0">
+                              <FileText className="w-6 h-6" />
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFavLocal(item.id)}
+                                className="text-neutral-500 hover:text-amber-400 transition"
+                                title={item.isFavorite ? '取消标星' : '标星收藏'}
+                              >
+                                <Star
+                                  className={`w-4 h-4 ${
+                                    item.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-neutral-500'
+                                  }`}
+                                />
+                              </button>
+                              <span className="font-semibold text-neutral-100 text-sm truncate" title={item.title}>
+                                {item.title || '无标题草稿'}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 font-mono">
+                                {item.theme || 'pie'}
+                              </span>
+                            </div>
+
+                            {item.digest && (
+                              <p className="text-neutral-400 text-xs line-clamp-1">
+                                {item.digest}
+                              </p>
+                            )}
+
+                            <div className="flex items-center space-x-3 text-neutral-500 text-[11px]">
+                              <span>作者: {item.author || '未署名'}</span>
+                              <span>字数: {item.wordCount || (item.markdown ? item.markdown.length : 0)} 字</span>
+                              <span>更新: {new Date(item.updatedAt).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onLoadDraftIntoEditor({
+                                title: item.title,
+                                author: item.author,
+                                content: item.markdown,
+                                digest: item.digest,
+                                cover: item.cover,
+                                theme: item.theme,
+                              });
+                              setLocalNotice(`📑 已将《${item.title}》载入当前编辑器！`);
+                              setTimeout(() => setLocalNotice(null), 2500);
+                            }}
+                            className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 transition text-xs font-medium"
+                            title="将此草稿内容回填到当前主编辑器中"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>载入编辑</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicateLocal(item.id)}
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 border border-transparent hover:border-neutral-700 transition"
+                            title="克隆此文章副本"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLocal(item.id, item.title)}
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-rose-950/30 transition"
+                            title="删除此草稿"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* ==================================================== */}
           {/* TAB 1: DRAFTS LIST */}
           {/* ==================================================== */}

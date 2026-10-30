@@ -37,6 +37,7 @@ import {
   Layout,
   Workflow,
   Sigma,
+  Columns,
 } from 'lucide-react';
 import { ArticleMeta, PublishHistoryItem } from '../types/app.ts';
 import { wechatHtmlToMarkdown, isHtmlContent } from '../markdown/html2md.ts';
@@ -97,6 +98,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [cleanNotice, setCleanNotice] = useState<string | null>(null);
   const [isComponentsModalOpen, setIsComponentsModalOpen] = useState(false);
   const [isMermaidMenuOpen, setIsMermaidMenuOpen] = useState(false);
+  const [isImageGridMenuOpen, setIsImageGridMenuOpen] = useState(false);
 
   // Outline / Table of Contents state
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
@@ -788,6 +790,68 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             >
               <ImageIcon className="w-3.5 h-3.5" />
             </button>
+
+            {/* 并排多图快捷插入下拉 */}
+            <div className="relative inline-block">
+              <button
+                type="button"
+                onClick={() => setIsImageGridMenuOpen((prev) => !prev)}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition flex items-center space-x-1 ${
+                  isImageGridMenuOpen
+                    ? 'bg-amber-600/40 text-amber-300 border border-amber-500/60 shadow-xs'
+                    : 'bg-neutral-800 hover:bg-neutral-700 text-amber-300 border border-amber-800/60'
+                }`}
+                title="并排双图/三图网格排版（微信客户端永不折行）"
+              >
+                <Columns className="w-3 h-3 text-amber-400" />
+                <span>并排图</span>
+              </button>
+
+              {isImageGridMenuOpen && (
+                <div
+                  className="absolute left-0 top-full mt-1.5 w-60 bg-neutral-900 border border-neutral-700 rounded-lg shadow-2xl p-1.5 z-40 animate-fadeIn text-xs"
+                  onMouseLeave={() => setIsImageGridMenuOpen(false)}
+                >
+                  <div className="text-[10px] font-semibold text-neutral-400 px-2 py-1 uppercase tracking-wider border-b border-neutral-800 mb-1 flex items-center justify-between">
+                    <span>微信真机并排网格</span>
+                    <span className="text-emerald-400 font-normal">零折行保证</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText('\n::: col-2\n![对比图一说明](https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop)\n![对比图二说明](https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&auto=format&fit=crop)\n:::\n');
+                      setIsImageGridMenuOpen(false);
+                      showNotice('🖼️ 已插入 50%:50% 双图并排容器模板！');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-amber-300 transition flex items-center justify-between group"
+                  >
+                    <div>
+                      <div className="font-medium text-[11px] text-neutral-200 group-hover:text-amber-300">👥 双图并排 (::: col-2)</div>
+                      <div className="text-[10px] text-neutral-400">两张配图 50%:50% 等宽排版</div>
+                    </div>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">2列</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insertText('\n::: col-3\n![图一说明](https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&auto=format&fit=crop)\n![图二说明](https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop)\n![图三说明](https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop)\n:::\n');
+                      setIsImageGridMenuOpen(false);
+                      showNotice('📸 已插入 33%:33%:33% 三图并排容器模板！');
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-amber-300 transition flex items-center justify-between group mt-0.5"
+                  >
+                    <div>
+                      <div className="font-medium text-[11px] text-neutral-200 group-hover:text-amber-300">📸 三图并排 (::: col-3)</div>
+                      <div className="text-[10px] text-neutral-400">三张配图 33%:33%:33% 并列展示</div>
+                    </div>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">3列</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {onOpenStockPhoto && (
               <button
                 type="button"

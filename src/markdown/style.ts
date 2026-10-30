@@ -28,28 +28,83 @@ export interface ThemeConfig {
 
 export const CUSTOM_THEMES_STORAGE_KEY = 'wechat_publisher_custom_themes';
 
+let memoryCustomThemes: Record<string, ThemeConfig> = {};
+
 export function getCustomThemes(): Record<string, ThemeConfig> {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined') return memoryCustomThemes;
   try {
     const raw = localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    return raw ? JSON.parse(raw) : memoryCustomThemes;
   } catch {
-    return {};
+    return memoryCustomThemes;
   }
 }
 
 export function saveCustomTheme(theme: ThemeConfig): void {
-  if (typeof window === 'undefined') return;
   const custom = getCustomThemes();
   custom[theme.name] = { ...theme, isCustom: true };
-  localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(custom));
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(custom));
+    } catch {}
+  } else {
+    memoryCustomThemes = custom;
+  }
 }
 
 export function deleteCustomTheme(themeName: string): void {
-  if (typeof window === 'undefined') return;
   const custom = getCustomThemes();
   delete custom[themeName];
-  localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(custom));
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(custom));
+    } catch {}
+  } else {
+    memoryCustomThemes = custom;
+  }
+}
+
+export function exportAllThemesJson(): string {
+  const custom = getCustomThemes();
+  return JSON.stringify({
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    themes: custom,
+  }, null, 2);
+}
+
+export function importAllThemesJson(jsonString: string): { count: number; error?: string } {
+  try {
+    const parsed = JSON.parse(jsonString);
+    const themesObj = parsed.themes || (parsed.name && parsed.primaryColor ? { [parsed.name]: parsed } : parsed);
+    if (!themesObj || typeof themesObj !== 'object') {
+      return { count: 0, error: '无效的主题包格式' };
+    }
+    const current = getCustomThemes();
+    let importedCount = 0;
+    for (const [key, theme] of Object.entries(themesObj as Record<string, any>)) {
+      if (theme && theme.primaryColor && (theme.label || theme.name)) {
+        const themeKey = theme.name || key;
+        current[themeKey] = {
+          ...theme,
+          name: themeKey,
+          label: theme.label || themeKey,
+          isCustom: true,
+        };
+        importedCount++;
+      }
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(current));
+      } catch {}
+    } else {
+      memoryCustomThemes = current;
+    }
+    return { count: importedCount };
+  } catch (err: any) {
+    return { count: 0, error: err.message || 'JSON 解析失败' };
+  }
 }
 
 export function getAllThemes(extraCustom?: Record<string, ThemeConfig>): Record<string, ThemeConfig> {

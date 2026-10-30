@@ -80,6 +80,7 @@ import { wechatHtmlToMarkdown } from './markdown/html2md.ts';
 import { safeFetchJson } from './utils/safeFetch.ts';
 import { renderMarkdownLocally } from './markdown/clientRender.ts';
 import { getCustomThemes, ThemeConfig } from './markdown/style.ts';
+import { saveArticle } from './utils/indexedDBStorage.ts';
 
 const LOCAL_STORAGE_DRAFT_KEY = 'wechat_draft_auto_save_v1';
 const LOCAL_STORAGE_CONFIG_KEY = 'wechat_publisher_client_config_v1';
@@ -511,6 +512,20 @@ export default function App() {
 
       try {
         localStorage.setItem('wechat_live_mobile_article', JSON.stringify(syncPayload));
+        localStorage.setItem(LOCAL_STORAGE_DRAFT_KEY, JSON.stringify({
+          markdown,
+          theme: activeTheme,
+          themeEnabled,
+          macStyle,
+          articleType,
+          metadata: {
+            title: localResult.metadata.title || metadata.title,
+            author: localResult.metadata.author || metadata.author,
+            digest: localResult.metadata.digest || metadata.digest,
+            cover: localResult.metadata.cover || metadata.cover,
+            thumb_media_id: metadata.thumb_media_id,
+          },
+        }));
       } catch {}
 
       safeFetchJson('/api/live-mobile/update', {
@@ -522,6 +537,32 @@ export default function App() {
       console.warn('Local render fallback error:', localErr);
     }
   }, [markdown, activeTheme, themeEnabled, macStyle, customThemes, convertLinksToFootnotes]);
+
+  // Auto-save current document into IndexedDB storage (debounced by 1500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (markdown && markdown.trim()) {
+        saveArticle({
+          id: 'active_current_draft',
+          title: metadata.title || '当前编辑草稿',
+          author: metadata.author || '作者',
+          digest: metadata.digest || '',
+          cover: metadata.cover || '',
+          markdown,
+          theme: activeTheme,
+          themeEnabled,
+          articleType,
+          wordCount: markdown.length,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }).catch((err) => {
+          console.warn('IndexedDB auto-save warning:', err);
+        });
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [markdown, metadata.title, metadata.author, metadata.digest, metadata.cover, activeTheme, themeEnabled, articleType]);
 
   // Pre-publish Content Compliance & Safety Audit Report
   const safetyReport = useMemo(() => {
@@ -611,22 +652,37 @@ export default function App() {
     }));
   };
 
-  // 3.6 Handle Loading Draft from WeChat Box back into Editor
-  const handleLoadDraftIntoEditor = (draft: { title: string; author: string; content: string; digest: string }) => {
+  // 3.6 Handle Loading Draft from WeChat Box or Local DB back into Editor
+  const handleLoadDraftIntoEditor = (draft: {
+    title: string;
+    author: string;
+    content: string;
+    digest: string;
+    cover?: string;
+    theme?: string;
+  }) => {
     // If incoming draft content has HTML tags, purify to clean Markdown
     const pureContent = /<[a-z][\s\S]*>/i.test(draft.content)
       ? wechatHtmlToMarkdown(draft.content)
       : draft.content;
+
+    const targetTheme = draft.theme || activeTheme;
+    if (draft.theme) {
+      setActiveTheme(draft.theme);
+    }
 
     const fmLines = [
       '---',
       `title: "${draft.title.replace(/"/g, '\\"')}"`,
       `author: "${draft.author.replace(/"/g, '\\"')}"`,
       `digest: "${draft.digest.replace(/"/g, '\\"')}"`,
-      `theme: "${activeTheme}"`,
+      draft.cover ? `cover: "${draft.cover}"` : null,
+      `theme: "${targetTheme}"`,
       '---',
       '',
-    ].join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     setMarkdown(`${fmLines}\n${pureContent}`);
     setMetadata((prev) => ({
@@ -634,7 +690,10 @@ export default function App() {
       title: draft.title,
       author: draft.author,
       digest: draft.digest,
+      cover: draft.cover || prev.cover,
+      theme: targetTheme,
     }));
+    showToast(`📑 已成功载入草稿《${draft.title}》！`);
   };
 
   // 3.7 Handle Custom Theme Application
@@ -1465,6 +1524,7 @@ export default function App() {
           markdown,
           digest: metadata.digest,
           cover: metadata.cover,
+          theme: activeTheme,
         }}
         onApplyThumbMediaId={(thumbMediaId, coverUrl) => {
           setMetadata((prev) => ({

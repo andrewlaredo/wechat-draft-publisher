@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import katex from 'katex';
 import { renderMermaidToSvg } from './mermaidRenderer.ts';
+import { parseImageGridContainers } from '../utils/imageGridParser.ts';
 
 export interface RenderOptions {
   macStyle?: boolean;
@@ -88,11 +89,14 @@ export function createMarkdownRenderer(options: RenderOptions = {}): any {
   // Wrap md.render to handle KaTeX Math Formula expressions before AST escaping
   const originalRender = md.render.bind(md);
   md.render = (src: string, env: any) => {
-    // 0. Extract and protect WeChat Interactive Blocks and Material Blocks:
+    // 0. Parse custom container layouts like ::: col-2 and ::: col-3 image grids
+    let processed = parseImageGridContainers(src);
+
+    // 0.1 Extract and protect WeChat Interactive Blocks and Material Blocks (including image grids):
     // <!-- [WECHAT_COMPONENT ...] -->...<!-- [/WECHAT_COMPONENT] -->
     const componentTokens: Map<string, string> = new Map();
     let compIndex = 0;
-    let processed = src.replace(
+    processed = processed.replace(
       /<!--\s*\[WECHAT_COMPONENT\b[^\]]*\]\s*-->([\s\S]*?)<!--\s*\[\/WECHAT_COMPONENT\]\s*-->/g,
       (_match, innerHtml) => {
         const placeholder = `WECHAT_COMP_BLOCK_${compIndex++}_PLACEHOLDER`;

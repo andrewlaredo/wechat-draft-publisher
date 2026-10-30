@@ -21,6 +21,8 @@ import {
   saveCustomTheme,
   deleteCustomTheme,
   generateThemeCss,
+  exportAllThemesJson,
+  importAllThemesJson,
 } from '../markdown/style.ts';
 
 interface ThemeDesignerModalProps {
@@ -29,6 +31,135 @@ interface ThemeDesignerModalProps {
   currentTheme: string;
   onApplyTheme: (themeConfig: ThemeConfig) => void;
 }
+
+export const CURATED_STARTER_PRESETS: ThemeConfig[] = [
+  {
+    name: 'tech-geek-blue',
+    label: '科技极客·深邃蓝',
+    description: '现代数字科技蓝，适合工程技术、数码教程与架构解析',
+    primaryColor: '#1e80ff',
+    secondaryColor: '#eff6ff',
+    accentColor: '#3b82f6',
+    textColor: '#1e293b',
+    mutedTextColor: '#64748b',
+    bgColor: '#ffffff',
+    cardBg: '#f8fafc',
+    borderColor: '#dbeafe',
+    codeBg: '#1e293b',
+    codeColor: '#e2e8f0',
+    headerStyle: 'border-left',
+    fontSize: 16,
+    lineHeight: 1.8,
+    letterSpacing: 0.5,
+    paragraphSpacing: 16,
+    isCustom: true,
+  },
+  {
+    name: 'paper-ink-literary',
+    label: '纸书墨香·文艺灰',
+    description: '静谧纸书墨黑与高级雅灰，适合深度随笔与人文思考',
+    primaryColor: '#374151',
+    secondaryColor: '#f9fafb',
+    accentColor: '#4b5563',
+    textColor: '#1f2937',
+    mutedTextColor: '#6b7280',
+    bgColor: '#ffffff',
+    cardBg: '#fdfbf7',
+    borderColor: '#e5e7eb',
+    codeBg: '#27272a',
+    codeColor: '#f4f4f5',
+    headerStyle: 'clean',
+    fontSize: 16,
+    lineHeight: 1.85,
+    letterSpacing: 0.75,
+    paragraphSpacing: 18,
+    isCustom: true,
+  },
+  {
+    name: 'warm-autumn-amber',
+    label: '暖阳麦浪·秋日橘',
+    description: '明快温暖的暖阳秋色，亲和力强，适合干货教程与心路历程',
+    primaryColor: '#f97316',
+    secondaryColor: '#fff7ed',
+    accentColor: '#ea580c',
+    textColor: '#292524',
+    mutedTextColor: '#78716c',
+    bgColor: '#ffffff',
+    cardBg: '#fffaf5',
+    borderColor: '#ffedd5',
+    codeBg: '#1c1917',
+    codeColor: '#f5f5f4',
+    headerStyle: 'orangeheart',
+    fontSize: 16,
+    lineHeight: 1.8,
+    letterSpacing: 0.5,
+    paragraphSpacing: 16,
+    isCustom: true,
+  },
+  {
+    name: 'spring-cinnabar-red',
+    label: '新春朱砂·喜庆红',
+    description: '中国传统朱砂红，适合节日特刊、重磅公告与里程碑发布',
+    primaryColor: '#dc2626',
+    secondaryColor: '#fef2f2',
+    accentColor: '#b91c1c',
+    textColor: '#1c1917',
+    mutedTextColor: '#78716c',
+    bgColor: '#ffffff',
+    cardBg: '#fffbfb',
+    borderColor: '#fee2e2',
+    codeBg: '#18181b',
+    codeColor: '#fafafa',
+    headerStyle: 'pie',
+    fontSize: 16,
+    lineHeight: 1.8,
+    letterSpacing: 0.5,
+    paragraphSpacing: 16,
+    isCustom: true,
+  },
+  {
+    name: 'champagne-luxury-gold',
+    label: '高雅香槟·轻奢金',
+    description: '典雅轻奢香槟金棕，适合商业观察、高端访谈与品牌通告',
+    primaryColor: '#d97706',
+    secondaryColor: '#fffbeb',
+    accentColor: '#b45309',
+    textColor: '#292524',
+    mutedTextColor: '#78716c',
+    bgColor: '#ffffff',
+    cardBg: '#fefdf9',
+    borderColor: '#fef3c7',
+    codeBg: '#1c1917',
+    codeColor: '#fef3c7',
+    headerStyle: 'border-left',
+    fontSize: 16,
+    lineHeight: 1.8,
+    letterSpacing: 0.6,
+    paragraphSpacing: 16,
+    isCustom: true,
+  },
+  {
+    name: 'fresh-mint-emerald',
+    label: '清新薄荷·护眼绿',
+    description: '清爽温润薄荷翠绿，护眼舒适，适合科普、健康与生活美学',
+    primaryColor: '#059669',
+    secondaryColor: '#ecfdf5',
+    accentColor: '#047857',
+    textColor: '#1e293b',
+    mutedTextColor: '#64748b',
+    bgColor: '#ffffff',
+    cardBg: '#f6fbf8',
+    borderColor: '#d1fae5',
+    codeBg: '#0f172a',
+    codeColor: '#e2e8f0',
+    headerStyle: 'border-left',
+    fontSize: 16,
+    lineHeight: 1.8,
+    letterSpacing: 0.5,
+    paragraphSpacing: 16,
+    isCustom: true,
+  },
+];
 
 const DEFAULT_STARTER_THEME: ThemeConfig = {
   name: 'my-custom-theme',
@@ -167,6 +298,52 @@ export const ThemeDesignerModal: React.FC<ThemeDesignerModalProps> = ({
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  // Bulk Export All Custom Themes
+  const handleExportAllThemes = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(exportAllThemesJson());
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `wechat-all-custom-themes-backup.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    setSaveStatus('📦 已成功导出所有自定义主题备份！');
+    setTimeout(() => setSaveStatus(null), 2500);
+  };
+
+  // Bulk Import All Custom Themes
+  const handleImportAllThemes = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const res = importAllThemesJson(event.target?.result as string);
+      if (res.count > 0) {
+        setCustomThemesList(getCustomThemes());
+        setSaveStatus(`📥 成功恢复 ${res.count} 个自定义主题！`);
+        setTimeout(() => setSaveStatus(null), 3000);
+      } else {
+        alert(res.error || '未识别到有效的主题配置');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Insert standard CSS snippet
+  const handleInsertCssSnippet = (snippet: string, name: string) => {
+    setEditingTheme((prev) => {
+      const current = prev.customCss || '';
+      const separator = current.trim() ? '\n\n' : '';
+      return {
+        ...prev,
+        customCss: `${current}${separator}/* 🎨 快速注入: ${name} */\n${snippet}`,
+      };
+    });
+    setSaveStatus(`✨ 已注入规则「${name}」！`);
+    setTimeout(() => setSaveStatus(null), 2500);
   };
 
   // Delete a custom theme
@@ -321,6 +498,43 @@ export const ThemeDesignerModal: React.FC<ThemeDesignerModalProps> = ({
             {/* TAB 1: Colors */}
             {activeTab === 'colors' && (
               <div className="space-y-4">
+                {/* Curated Starter Presets Row */}
+                <div className="p-3 bg-neutral-950/80 rounded-xl border border-neutral-800 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-neutral-200">⭐ 经典版式基准一键克隆：</span>
+                    <span className="text-neutral-400">点击直接作为设计起点</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {CURATED_STARTER_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          setEditingTheme({
+                            ...preset,
+                            name: `custom-${preset.name}`,
+                            label: `定制 · ${preset.label}`,
+                            isCustom: true,
+                          });
+                          setSaveStatus(`🎨 已载入「${preset.label}」基准！`);
+                          setTimeout(() => setSaveStatus(null), 2500);
+                        }}
+                        className="p-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-750 text-left transition group flex items-center space-x-2"
+                      >
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
+                          style={{ backgroundColor: preset.primaryColor }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] font-medium text-neutral-200 group-hover:text-rose-300 truncate">
+                            {preset.label}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="text-xs font-semibold text-neutral-200">核心色彩体系</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Primary Color */}
@@ -586,10 +800,60 @@ export const ThemeDesignerModal: React.FC<ThemeDesignerModalProps> = ({
                   <div className="text-xs font-semibold text-neutral-200">高级 CSS 代码注入</div>
                   <span className="text-[11px] text-neutral-400">将由 Juice 深度内联到对应 HTML 标签</span>
                 </div>
+
+                {/* Quick CSS Rules Bar */}
+                <div className="p-3 bg-neutral-950/80 rounded-xl border border-neutral-800 space-y-2">
+                  <div className="text-[11px] font-medium text-neutral-300 flex items-center justify-between">
+                    <span>⚡ 常用高级样式规则快速注入：</span>
+                    <span className="text-[10px] text-rose-400 font-normal">点击自动追加至代码末尾</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      {
+                        name: '荧光笔高亮',
+                        css: 'strong {\n  background: linear-gradient(transparent 60%, rgba(254, 240, 138, 0.85) 60%);\n  padding: 0 4px;\n  border-radius: 2px;\n}',
+                      },
+                      {
+                        name: 'Mac 终端磨砂阴影',
+                        css: '.code-block-wrapper {\n  border-radius: 10px;\n  box-shadow: 0 8px 24px rgba(0,0,0,0.12);\n  overflow: hidden;\n}',
+                      },
+                      {
+                        name: '标题渐变微光下划线',
+                        css: 'h2 {\n  border-bottom: 2px solid #1e80ff;\n  padding-bottom: 6px;\n}',
+                      },
+                      {
+                        name: '表格斑马纹交替行',
+                        css: '.wechat-table-wrapper table tr:nth-child(even) td {\n  background-color: #f8fafc;\n}',
+                      },
+                      {
+                        name: '引用卡片双重柔光边',
+                        css: 'blockquote {\n  border-left: 4.5px solid #1e80ff;\n  background: #f8fafc;\n  border-radius: 0 8px 8px 0;\n  box-shadow: 0 2px 8px rgba(0,0,0,0.03);\n}',
+                      },
+                      {
+                        name: '中文首行缩进两字',
+                        css: 'p {\n  text-indent: 2em;\n}',
+                      },
+                      {
+                        name: '艺术波浪下划线',
+                        css: 'em {\n  text-decoration: underline wavy #ef4444;\n  text-underline-offset: 4px;\n  font-style: normal;\n}',
+                      },
+                    ].map((snippet) => (
+                      <button
+                        key={snippet.name}
+                        type="button"
+                        onClick={() => handleInsertCssSnippet(snippet.css, snippet.name)}
+                        className="px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-rose-300 border border-neutral-750 text-[11px] font-mono transition"
+                      >
+                        + {snippet.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <textarea
                   value={editingTheme.customCss || ''}
                   onChange={(e) => setEditingTheme({ ...editingTheme, customCss: e.target.value })}
-                  rows={10}
+                  rows={9}
                   className="w-full p-3 bg-neutral-950 font-mono text-xs text-neutral-200 border border-neutral-700 rounded-xl focus:outline-none focus:border-rose-500 leading-relaxed"
                   placeholder="/* 自定义附加 CSS，例如：*/&#10;blockquote { border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }&#10;strong { text-decoration: underline wavy; }"
                 />
@@ -602,7 +866,28 @@ export const ThemeDesignerModal: React.FC<ThemeDesignerModalProps> = ({
             {/* TAB 4: Manage My Custom Themes */}
             {activeTab === 'manage' && (
               <div className="space-y-3">
-                <div className="text-xs font-semibold text-neutral-200">已保存的自定义主题列表</div>
+                <div className="flex items-center justify-between pb-1">
+                  <div className="text-xs font-semibold text-neutral-200">
+                    已保存的自定义主题列表 ({Object.keys(customThemesList).length})
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExportAllThemes}
+                      className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs flex items-center gap-1.5 border border-neutral-700 transition"
+                      title="将所有自定义主题打包导出为单个 JSON 备份文件"
+                    >
+                      <Download className="w-3.5 h-3.5 text-rose-400" />
+                      <span>全量主题包导出</span>
+                    </button>
+                    <label className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs flex items-center gap-1.5 border border-neutral-700 cursor-pointer transition">
+                      <Upload className="w-3.5 h-3.5 text-rose-400" />
+                      <span>恢复全量主题包</span>
+                      <input type="file" accept=".json" onChange={handleImportAllThemes} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+
                 {Object.keys(customThemesList).length === 0 ? (
                   <div className="p-8 text-center text-neutral-500 bg-neutral-950/40 rounded-xl border border-dashed border-neutral-800">
                     暂无保存的自定义主题。请调整上方参数并点击「保存并应用主题」。
