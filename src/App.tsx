@@ -18,6 +18,7 @@ import { MatrixPublishModal } from './components/MatrixPublishModal.tsx';
 import { WatchModeModal } from './components/WatchModeModal.tsx';
 import { ArticleExtractModal } from './components/ArticleExtractModal.tsx';
 import { LongImageExportModal } from './components/LongImageExportModal.tsx';
+import { AiPolishModal } from './components/AiPolishModal.tsx';
 import { SafetyAuditModal } from './components/SafetyAuditModal.tsx';
 import { CoverDesignerModal } from './components/CoverDesignerModal.tsx';
 import { InteractiveComponentsModal } from './components/InteractiveComponentsModal.tsx';
@@ -358,6 +359,7 @@ export default function App() {
   const [trendToDraftInitialAngle, setTrendToDraftInitialAngle] = useState<TrendingAngle | null>(null);
   const [isTypographyDoctorOpen, setIsTypographyDoctorOpen] = useState<boolean>(false);
   const [isWechatSeoOpen, setIsWechatSeoOpen] = useState<boolean>(false);
+  const [isAiPolishOpen, setIsAiPolishOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<WeChatAccountConfig[]>(() => getStoredAccounts());
   const [activeAccountId, setActiveAccountIdState] = useState<string | null>(() => getActiveAccountId());
@@ -1228,6 +1230,15 @@ export default function App() {
       action: () => setIsTypographyDoctorOpen(true),
     },
     {
+      id: 'cmd-ai-polish',
+      title: 'AI 粗稿一键排版润色 (结构大纲/爆款金句/盘古排版)',
+      subtitle: '将口语笔记、未排版初稿一键升级为具备层级大纲、爆款金句卡片与规范格式的微信推文',
+      category: 'format',
+      icon: <Sparkles className="w-4 h-4 text-emerald-400" />,
+      keywords: ['ai', '润色', '排版', '大纲', '金句', '初稿', 'polish', '重构'],
+      action: () => setIsAiPolishOpen(true),
+    },
+    {
       id: 'cmd-wechat-seo',
       title: '微信搜一搜与看一看 SEO 优化中枢 (WeChat Search SEO Lab)',
       subtitle: '标题核心词前置率、搜索意图词、首段密度与话题标签全域穿透',
@@ -1444,6 +1455,7 @@ export default function App() {
             onOpenCoverDesigner={() => setIsCoverDesignerOpen(true)}
             onOpenStockPhoto={() => setIsStockPhotoOpen(true)}
             onOpenSvgInteractive={() => setIsSvgInteractiveOpen(true)}
+            onOpenAiPolish={() => setIsAiPolishOpen(true)}
           />
         </div>
 
@@ -1916,6 +1928,26 @@ export default function App() {
           setMarkdown(newMarkdown);
         }}
         showToast={showToast}
+      />
+
+      {/* AI Rough Draft One-Click Formatting & Polishing Modal */}
+      <AiPolishModal
+        isOpen={isAiPolishOpen}
+        onClose={() => setIsAiPolishOpen(false)}
+        currentMarkdown={markdown}
+        onApplyPolished={(newMd, newTitle, newDigest, newTheme) => {
+          setMarkdown(newMd);
+          if (newTitle) {
+            setMetadata((prev) => ({ ...prev, title: newTitle }));
+          }
+          if (newDigest) {
+            setMetadata((prev) => ({ ...prev, digest: newDigest }));
+          }
+          if (newTheme) {
+            setActiveTheme(newTheme);
+          }
+          showToast('✨ AI 粗稿排版润色已成功覆盖应用到编辑器！');
+        }}
       />
 
       {/* Floating Keyboard Shortcut / Action Toast */}

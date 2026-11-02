@@ -23,6 +23,7 @@ import {
   XiaolvshuCard,
   XiaolvshuTheme,
 } from '../utils/xiaolvshuSlicer.ts';
+import JSZip from 'jszip';
 
 interface XiaolvshuStudioModalProps {
   isOpen: boolean;
@@ -133,6 +134,15 @@ export const XiaolvshuStudioModal: React.FC<XiaolvshuStudioModalProps> = ({
     } else if (activeTheme.id === 'fresh-avocado') {
       grad.addColorStop(0, '#f0fdf4');
       grad.addColorStop(1, '#e2f6ea');
+    } else if (activeTheme.id === 'red-viral') {
+      grad.addColorStop(0, '#fff1f2');
+      grad.addColorStop(1, '#ffe4e6');
+    } else if (activeTheme.id === 'morandi-purple') {
+      grad.addColorStop(0, '#faf5ff');
+      grad.addColorStop(1, '#f3e8ff');
+    } else if (activeTheme.id === 'mint-cyan') {
+      grad.addColorStop(0, '#f0fdfa');
+      grad.addColorStop(1, '#ccfbf1');
     } else {
       grad.addColorStop(0, '#ffffff');
       grad.addColorStop(1, '#f1f5f9');
@@ -219,7 +229,7 @@ export const XiaolvshuStudioModal: React.FC<XiaolvshuStudioModalProps> = ({
 
     // Bullet points
     if (card.points && card.points.length > 0) {
-      card.points.forEach((pt, pIdx) => {
+      card.points.forEach((pt) => {
         // Point box
         ctx.fillStyle = activeTheme.id.includes('dark') || activeTheme.id.includes('gold') ? 'rgba(255,255,255,0.04)' : '#ffffff';
         ctx.beginPath();
@@ -281,7 +291,7 @@ export const XiaolvshuStudioModal: React.FC<XiaolvshuStudioModalProps> = ({
     }
   };
 
-  // Batch download all cards
+  // Batch download all cards sequentially
   const handleDownloadAll = () => {
     setIsExporting(true);
     cards.forEach((card, i) => {
@@ -296,6 +306,35 @@ export const XiaolvshuStudioModal: React.FC<XiaolvshuStudioModalProps> = ({
         }
       }, i * 300);
     });
+  };
+
+  // One-click ZIP download for all cards
+  const handleDownloadAllZip = async () => {
+    setIsExporting(true);
+    try {
+      const zip = new JSZip();
+      const folderName = (title || 'xiaolvshu_cards').replace(/[\\/:*?"<>|]/g, '_');
+      const folder = zip.folder(folderName) || zip;
+
+      cards.forEach((card, i) => {
+        const dataUrl = renderCardToCanvas(card, i);
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+        const filename = `${String(i + 1).padStart(2, '0')}_${card.type}_card.png`;
+        folder.file(filename, base64Data, { base64: true });
+      });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${folderName}_全套${cards.length}张卡片.zip`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err: any) {
+      console.error('ZIP generation failed, falling back to sequential:', err);
+      handleDownloadAll();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -719,12 +758,21 @@ export const XiaolvshuStudioModal: React.FC<XiaolvshuStudioModalProps> = ({
 
               <button
                 type="button"
-                onClick={handleDownloadAll}
+                onClick={handleDownloadAllZip}
                 disabled={isExporting}
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
               >
                 <Download className="w-4 h-4" />
-                <span>{isExporting ? '正在批量打包渲染中...' : `一键批量下载全部 ${cards.length} 张高清切片图集`}</span>
+                <span>{isExporting ? '正在生成全套卡片 ZIP 压缩包...' : `一键打包下载全套 ${cards.length} 张卡片 ZIP (推荐)`}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadAll}
+                disabled={isExporting}
+                className="w-full py-1.5 text-neutral-400 hover:text-neutral-200 text-[11px] transition text-center"
+              >
+                或逐张分散下载全部 PNG ({cards.length} 个文件)
               </button>
 
               {onPublishDraft && (

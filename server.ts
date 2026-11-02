@@ -20,6 +20,7 @@ import { parseMarkdownFile, extractNewspicText } from './src/markdown/parser.ts'
 import { createMarkdownRenderer } from './src/markdown/renderer.ts';
 import { inlineWechatStyles } from './src/markdown/style.ts';
 import { generateArticle, testAiConnectivity, PROVIDER_PRESETS } from './src/ai/generator.ts';
+import { polishDraftArticle, STYLE_PROMPTS } from './src/ai/polisher.ts';
 import { registerExtractArticleRoute } from './src/wechat/extractArticle.ts';
 import { getCacheFilePath, safeReadJsonCache, safeWriteJsonCache } from './src/utils/cacheDir.ts';
 
@@ -687,6 +688,62 @@ async function startServer() {
       res.status(500).json({
         success: false,
         error: err.message || 'AI 文章生成失败，请检查 API Key 或重试',
+      });
+    }
+  });
+
+  // API 11.5: AI Rough Draft One-Click Formatting & Polishing
+  app.get('/api/ai/polish-styles', (_req, res) => {
+    res.json({
+      success: true,
+      styles: (Object.entries(STYLE_PROMPTS) as Array<[string, { name: string; focus: string }]>).map(([key, val]) => ({
+        id: key,
+        name: val.name,
+        focus: val.focus,
+      })),
+    });
+  });
+
+  app.post('/api/ai/polish', async (req, res) => {
+    try {
+      const {
+        roughContent,
+        polishStyle = 'structured',
+        provider,
+        baseUrl,
+        apiKey,
+        model,
+        customInstruction,
+        targetTone,
+      } = req.body;
+
+      if (!roughContent || !String(roughContent).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: '请提供待润色的初稿或粗糙文本内容',
+        });
+      }
+
+      const result = await polishDraftArticle({
+        roughContent: String(roughContent).trim(),
+        polishStyle,
+        provider,
+        baseUrl,
+        apiKey,
+        model,
+        customInstruction,
+        targetTone,
+      });
+
+      res.json({
+        success: true,
+        result,
+      });
+    } catch (err: any) {
+      console.error('AI Polish error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'AI 初稿润色排版失败，请检查设置或重试',
       });
     }
   });

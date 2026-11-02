@@ -78,6 +78,7 @@ interface MarkdownEditorProps {
   onOpenCoverDesigner?: () => void;
   onOpenStockPhoto?: () => void;
   onOpenSvgInteractive?: () => void;
+  onOpenAiPolish?: () => void;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -93,6 +94,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onOpenCoverDesigner,
   onOpenStockPhoto,
   onOpenSvgInteractive,
+  onOpenAiPolish,
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'metadata' | 'images' | 'history'>('editor');
   const [cleanNotice, setCleanNotice] = useState<string | null>(null);
@@ -941,6 +943,18 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
               <span>排版物料</span>
             </button>
+
+            {onOpenAiPolish && (
+              <button
+                type="button"
+                onClick={onOpenAiPolish}
+                className="px-2 py-0.5 rounded bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 text-emerald-300 border border-emerald-500/50 text-[11px] font-medium transition flex items-center space-x-1 shadow-xs"
+                title="AI 粗稿一键排版润色：提炼二级大纲、爆款金句卡片、病句修复与盘古规范"
+              >
+                <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+                <span>AI润色</span>
+              </button>
+            )}
 
             {onOpenSvgInteractive && (
               <button

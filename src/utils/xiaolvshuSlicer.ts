@@ -108,6 +108,45 @@ export const XIAOLVSHU_THEMES: XiaolvshuTheme[] = [
     cardBorder: '1px solid #a7f3d0',
     footerColor: '#6ee7b7',
   },
+  {
+    id: 'red-viral',
+    name: '小红书爆款红 (高转化抓眼)',
+    bgColor: '#fff5f5',
+    bgGradient: 'linear-gradient(145deg, #fff1f2 0%, #ffe4e6 100%)',
+    titleColor: '#881337',
+    textColor: '#9f1239',
+    accentColor: '#e11d48',
+    tagBg: '#fecdd3',
+    tagText: '#be123c',
+    cardBorder: '1px solid #fda4af',
+    footerColor: '#fb7185',
+  },
+  {
+    id: 'morandi-purple',
+    name: '莫兰迪柔紫 (知性高级感)',
+    bgColor: '#fbf9fe',
+    bgGradient: 'linear-gradient(145deg, #faf5ff 0%, #f3e8ff 100%)',
+    titleColor: '#3b0764',
+    textColor: '#581c87',
+    accentColor: '#9333ea',
+    tagBg: '#e9d5ff',
+    tagText: '#7e22ce',
+    cardBorder: '1px solid #d8b4fe',
+    footerColor: '#c084fc',
+  },
+  {
+    id: 'mint-cyan',
+    name: '薄荷青冰 (轻爽数码)',
+    bgColor: '#f0fdfa',
+    bgGradient: 'linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 100%)',
+    titleColor: '#134e4a',
+    textColor: '#115e59',
+    accentColor: '#0d9488',
+    tagBg: '#99f6e4',
+    tagText: '#0f766e',
+    cardBorder: '1px solid #5eead4',
+    footerColor: '#2dd4bf',
+  },
 ];
 
 /**
@@ -140,23 +179,35 @@ export function sliceMarkdownToXiaolvshuCards(
   const lines = markdown.split('\n');
   let currentHeading = '';
   let currentPoints: string[] = [];
+  let currentQuote: string | undefined = undefined;
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
+    // 检测引用块作为金句 (> 引用)
+    if (trimmed.startsWith('> ') || trimmed.startsWith('>')) {
+      const q = trimmed.replace(/^>\s*/, '').replace(/[*_`]/g, '').trim();
+      if (q.length > 3) {
+        currentQuote = q;
+      }
+      continue;
+    }
+
     // 检测 H2 / H3 标题
     if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
-      if (currentHeading && currentPoints.length > 0) {
+      if (currentHeading && (currentPoints.length > 0 || currentQuote)) {
         cards.push({
           id: `card-content-${cards.length}`,
           type: 'content',
           title: currentHeading,
+          quote: currentQuote,
           points: currentPoints.slice(0, 4),
           tag: `POINT 0${cards.length}`,
           author,
         });
         currentPoints = [];
+        currentQuote = undefined;
       }
       currentHeading = trimmed.replace(/^#+\s*/, '').replace(/[《》【】]/g, '');
     } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || /^\d+\.\s/.test(trimmed)) {
@@ -177,11 +228,12 @@ export function sliceMarkdownToXiaolvshuCards(
   }
 
   // 如果剩余还有
-  if (currentHeading && currentPoints.length > 0 && cards.length < 7) {
+  if (currentHeading && (currentPoints.length > 0 || currentQuote) && cards.length < 7) {
     cards.push({
       id: `card-content-${cards.length}`,
       type: 'content',
       title: currentHeading,
+      quote: currentQuote,
       points: currentPoints.slice(0, 4),
       tag: `POINT 0${cards.length}`,
       author,

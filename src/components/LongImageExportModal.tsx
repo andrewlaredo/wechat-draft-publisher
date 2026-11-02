@@ -24,6 +24,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toPng, toJpeg } from 'html-to-image';
+import JSZip from 'jszip';
 import { ArticleMeta } from '../types/app.ts';
 
 interface LongImageExportModalProps {
@@ -78,6 +79,7 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
   const [sliceMode, setSliceMode] = useState<SliceModeType>('none');
   const [slicePartsCount, setSlicePartsCount] = useState<number>(6);
   const [isSlicing, setIsSlicing] = useState<boolean>(false);
+  const [showSliceWatermark, setShowSliceWatermark] = useState<boolean>(true);
   const [slicedImages, setSlicedImages] = useState<SlicedItem[]>([]);
 
   const captureContainerRef = useRef<HTMLDivElement>(null);
@@ -240,6 +242,34 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
         if (!ctx) continue;
 
         ctx.drawImage(img, 0, sy, totalWidth, sh, 0, 0, totalWidth, sh);
+
+        // Optional page badge (e.g. 01 / 06) for social multi-card posts
+        if (showSliceWatermark && totalSlices > 1) {
+          const badgeText = `${String(i + 1).padStart(2, '0')} / ${String(totalSlices).padStart(2, '0')}`;
+          ctx.save();
+          ctx.font = 'bold 22px monospace';
+          const textMetrics = ctx.measureText(badgeText);
+          const badgeW = textMetrics.width + 24;
+          const badgeH = 36;
+          const badgeX = totalWidth - badgeW - 24;
+          const badgeY = sh - badgeH - 24;
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+          ctx.beginPath();
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 8);
+          ctx.fill();
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+          ctx.restore();
+        }
+
         const sliceDataUrl = canvas.toDataURL('image/png');
         results.push({
           index: i + 1,
@@ -257,7 +287,48 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
     } finally {
       setIsSlicing(false);
     }
-  }, [generatedDataUrl, sliceMode, slicePartsCount]);
+  }, [generatedDataUrl, sliceMode, slicePartsCount, showSliceWatermark]);
+
+  // Download all slices packaged as a ZIP
+  const handleDownloadAllSlicesZip = async () => {
+    if (slicedImages.length === 0) return;
+    try {
+      const zip = new JSZip();
+      const baseName = (metadata.title || 'wechat_long_poster').replace(/[\\/:*?"<>|]/g, '_');
+      const folder = zip.folder(baseName) || zip;
+
+      slicedImages.forEach((item) => {
+        const base64Data = item.dataUrl.replace(/^data:image\/png;base64,/, '');
+        const filename = `${baseName}_slice_${String(item.index).padStart(2, '0')}_of_${slicedImages.length}.png`;
+        folder.file(filename, base64Data, { base64: true });
+      });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${baseName}_共${slicedImages.length}张切片.zip`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showToast(`📦 成功打包下载 ${slicedImages.length} 张连续切片 ZIP 压缩包！`);
+    } catch (err: any) {
+      console.error('Slice ZIP generation failed, fallback to sequential:', err);
+      handleDownloadAllSlices();
+    }
+  };
+
+  // Copy single slice to clipboard
+  const handleCopySingleSlice = async (sliceDataUrl: string, sliceIndex: number) => {
+    try {
+      const res = await fetch(sliceDataUrl);
+      const blob = await res.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob }),
+      ]);
+      showToast(`📋 已复制切片 #${sliceIndex} 到系统剪贴板！可以直接在小红书/微信按 Ctrl+V 粘贴发送`);
+    } catch {
+      showToast('浏览器安全限制，请点击下方「单独下载」保存此切片');
+    }
+  };
 
   // Download Sliced Images sequentially
   const handleDownloadAllSlices = async () => {
@@ -555,24 +626,36 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
               )}
 
               {sliceMode !== 'none' && (
-                <button
-                  type="button"
-                  onClick={() => handlePerformSlicing()}
-                  disabled={!generatedDataUrl || isSlicing}
-                  className="w-full py-1.5 bg-rose-600/30 hover:bg-rose-600/40 border border-rose-500/50 text-rose-200 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
-                >
-                  {isSlicing ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>正在智能切割...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Scissors className="w-3.5 h-3.5 text-rose-400" />
-                      <span>立即执行切片 (预览 & 下载)</span>
-                    </>
-                  )}
-                </button>
+                <>
+                  <label className="flex items-center gap-2 text-[11px] text-neutral-300 cursor-pointer select-none pt-1">
+                    <input
+                      type="checkbox"
+                      checked={showSliceWatermark}
+                      onChange={(e) => setShowSliceWatermark(e.target.checked)}
+                      className="rounded accent-rose-500 bg-neutral-800 border-neutral-700"
+                    />
+                    <span>添加序号角标 (如 01/06) 避免平台发图乱序</span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePerformSlicing()}
+                    disabled={!generatedDataUrl || isSlicing}
+                    className="w-full py-1.5 bg-rose-600/30 hover:bg-rose-600/40 border border-rose-500/50 text-rose-200 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                  >
+                    {isSlicing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>正在智能切割...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Scissors className="w-3.5 h-3.5 text-rose-400" />
+                        <span>立即执行切片 (预览 & 下载)</span>
+                      </>
+                    )}
+                  </button>
+                </>
               )}
             </div>
 
@@ -1211,14 +1294,24 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                       <Scissors className="w-3.5 h-3.5" />
                       已切分为 {slicedImages.length} 张独立图片
                     </span>
-                    <button
-                      type="button"
-                      onClick={handleDownloadAllSlices}
-                      className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>打包极速下载全部切片</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadAllSlicesZip}
+                        className="px-3 py-1 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-xs"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>一键打包切片 ZIP (推荐)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadAllSlices}
+                        className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 rounded-lg text-xs transition"
+                        title="按顺序逐张触发浏览器下载"
+                      >
+                        逐张下载
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl p-2">
@@ -1238,13 +1331,25 @@ export const LongImageExportModal: React.FC<LongImageExportModalProps> = ({
                             className="w-full h-auto object-cover display-block"
                           />
                         </div>
-                        <a
-                          href={slice.dataUrl}
-                          download={`slice_${slice.index}.png`}
-                          className="w-full py-1 bg-neutral-800 hover:bg-neutral-750 text-neutral-200 rounded text-center text-xs transition"
-                        >
-                          单独下载此切片
-                        </a>
+                        <div className="grid grid-cols-2 gap-1.5 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopySingleSlice(slice.dataUrl, slice.index)}
+                            className="py-1 px-1.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-white rounded text-center text-xs transition flex items-center justify-center gap-1"
+                            title="复制切片图片至系统剪贴板"
+                          >
+                            <Copy className="w-3 h-3 text-emerald-400" />
+                            <span>复制图片</span>
+                          </button>
+                          <a
+                            href={slice.dataUrl}
+                            download={`slice_${slice.index}.png`}
+                            className="py-1 px-1.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-white rounded text-center text-xs transition flex items-center justify-center gap-1"
+                          >
+                            <Download className="w-3 h-3 text-rose-400" />
+                            <span>下载单图</span>
+                          </a>
+                        </div>
                       </div>
                     ))}
                   </div>
